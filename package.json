@@ -10,10 +10,14 @@
     "start": "pnpm --filter @ai-dashboard/cli start",
     "dev": "pnpm --filter @ai-dashboard/cli dev",
     "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "typecheck": "pnpm -r --if-present typecheck",
+    "smoke:synth": "tsx scripts/smoke-synth.ts"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]

@@ -1,8 +1,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
-import { type DashboardConfig, resolveConfig, type UnifiedProject, SqliteStore } from "@ai-dashboard/core/node";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  type DashboardConfig,
+  resolveConfig,
+  type SynthOutcome,
+  type UnifiedProject,
+  SqliteStore,
+} from "@ai-dashboard/core/node";
 import { createApp, type ServerDeps } from "./app.js";
 
 let store: SqliteStore;
@@ -30,8 +36,25 @@ function makeProject(cp: string): UnifiedProject {
   };
 }
 
+function freshOutcome(): SynthOutcome {
+  return {
+    ok: true,
+    result: {
+      stage: "building",
+      summary: "正在搞",
+      nextStep: "继续写测试",
+      blockers: [],
+      model: "glm-4.7-flash",
+      provider: "zhipu",
+      generatedAtMs: 123,
+      inputHash: "h",
+    },
+    fromCache: false,
+  };
+}
+
 function deps(): ServerDeps {
-  return { config: cfg, store, collect: async () => collected };
+  return { config: cfg, store, collect: async () => collected, synthesize: async () => freshOutcome() };
 }
 
 function enc(p: string): string {
@@ -103,11 +126,53 @@ describe("createApp", () => {
       collect: async () => {
         throw new Error("boom: sqlite locked");
       },
+      synthesize: async () => freshOutcome(),
     };
     const res = await createApp(throwing).request("/api/projects");
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.error).toBe("internal_error");
     expect(body.message).toContain("boom: sqlite locked");
+  });
+
+  it("POST /api/projects/:enc/synthesize returns the outcome + refreshed project", async () => {
+    const synth = vi.fn(async (_p: UnifiedProject): Promise<SynthOutcome> => freshOutcome());
+    const d: ServerDeps = { config: cfg, store, collect: async () => collected, synthesize: synth };
+    const res = await createApp(d).request(`/api/projects/${enc("D:/Foo")}/synthesize`, { method: "POST" });
+    expect(res.status).toBe(200);
+    expect(synth).toHaveBeenCalledTimes(1);
+    const body = (await res.json()) as any;
+    expect(body.outcome.ok).toBe(true);
+    expect(body.outcome.result.nextStep).toBe("继续写测试");
+    expect(body.project.canonicalPath).toBe("D:/Foo");
+  });
+
+  it("synthesize route surfaces a failed outcome without 500ing", async () => {
+    const d: ServerDeps = {
+      config: cfg,
+      store,
+      collect: async () => collected,
+      synthesize: async () => ({ ok: false, error: "模型调用失败：no key" }),
+    };
+    const res = await createApp(d).request(`/api/projects/${enc("D:/Foo")}/synthesize`, { method: "POST" });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.outcome.ok).toBe(false);
+    expect(body.outcome.error).toContain("no key");
+  });
+
+  it("POST /api/synthesize-all tallies cached/fresh/failed for non-stale projects", async () => {
+    const d: ServerDeps = {
+      config: cfg,
+      store,
+      collect: async () => collected,
+      synthesize: async () => freshOutcome(),
+    };
+    const res = await createApp(d).request("/api/synthesize-all", { method: "POST" });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.total).toBe(2); // both fixtures are "today" (non-stale)
+    expect(body.fresh).toBe(2);
+    expect(body.failed).toBe(0);
   });
 });

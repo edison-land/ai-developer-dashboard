@@ -5,6 +5,7 @@ import {
   type DashboardConfig,
   type Stage,
   type Store,
+  type SynthOutcome,
   type UnifiedProject,
   pathKey,
   resolveConfig,
@@ -17,6 +18,8 @@ export interface ServerDeps {
   store: Store;
   /** Recompute the unified project list (adapters + git + merge). */
   collect: () => Promise<UnifiedProject[]>;
+  /** On-demand AI synthesis for one project (cache-aware; never throws). */
+  synthesize: (project: UnifiedProject) => Promise<SynthOutcome>;
   /** Optional absolute path to the built UI; if absent, the API still works. */
   uiDir?: string;
 }
@@ -126,6 +129,33 @@ export function createApp(deps: ServerDeps): Hono {
     deps.store.clearStageOverride(canonical);
     await refresh();
     return c.json({ project: findProject(canonical) });
+  });
+
+  api.post("/projects/:enc/synthesize", async (c) => {
+    await ensureLoaded();
+    const canonical = decodePath(c.req.param("enc"));
+    const project = findProject(canonical);
+    if (!project) return c.json({ error: "not found" }, 404);
+    const outcome = await deps.synthesize(project);
+    await refresh();
+    return c.json({ project: findProject(canonical), outcome });
+  });
+
+  api.post("/synthesize-all", async (c) => {
+    await ensureLoaded();
+    const includeStale = c.req.query("includeStale") === "true";
+    const targets = state.projects.filter((p) => includeStale || p.recencyBucket !== "stale");
+    let cached = 0;
+    let fresh = 0;
+    let failed = 0;
+    for (const p of targets) {
+      const r = await deps.synthesize(p);
+      if (!r.ok) failed++;
+      else if (r.fromCache) cached++;
+      else fresh++;
+    }
+    await refresh();
+    return c.json({ total: targets.length, cached, fresh, failed, generatedAtMs: state.generatedAtMs });
   });
 
   api.get("/settings", (c) => c.json(deps.store.getSettings()));

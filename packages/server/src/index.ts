@@ -4,27 +4,57 @@ import {
   Dashboard,
   resolveConfig,
   SqliteStore,
+  type SynthOutcome,
+  type SynthProvider,
+  type UnifiedProject,
+  synthesize as synthesizeProject,
 } from "@ai-dashboard/core/node";
 import { createApp, type ServerDeps } from "./app.js";
+import { NodeTailReader } from "./synth/tailReader.js";
+import { ZhipuProvider } from "./synth/zhipu.js";
 
 export { createApp };
 export type { ServerDeps };
+export { NodeTailReader, ZhipuProvider };
 
 /**
  * Build the server's dependencies: opens our sqlite store, creates the
  * Dashboard orchestrator, and wires a `collect` closure that merges live
- * overrides + synth cache. This is the single place that knows how the pieces
- * fit together — the Electron shell (Phase 6) will reuse it directly.
+ * overrides + synth cache. The `synthesize` closure reads the current provider
+ * + key + model from settings at call time, so a key pasted in Settings takes
+ * effect immediately without a restart. This is the single place that knows how
+ * the pieces fit together — the Electron shell (Phase 6) will reuse it directly.
  */
 export function createServerDeps(opts: { config: DashboardConfig; uiDir?: string }): ServerDeps {
   const store = new SqliteStore(opts.config.dbPath);
   const dashboard = new Dashboard(opts.config);
+  const tailReader = new NodeTailReader();
   const collect = async () =>
     dashboard.collect({
       overrides: store.allOverrides(),
       synthCache: store.allSynth(),
     });
-  return { config: opts.config, store, collect, uiDir: opts.uiDir };
+  const synthesize = async (project: UnifiedProject): Promise<SynthOutcome> => {
+    const settings = store.getSettings();
+    const apiKey = store.getApiKey(settings.provider);
+    if (!apiKey) {
+      return { ok: false, error: `尚未设置 ${settings.provider} 的 API Key（请在「设置」页填写）` };
+    }
+    let provider: SynthProvider;
+    if (settings.provider === "zhipu") {
+      provider = new ZhipuProvider({ apiKey, defaultModel: settings.model });
+    } else {
+      // Anthropic/OpenAI provider impls are deferred (Phase 3 ships Zhipu only).
+      return { ok: false, error: `${settings.provider} provider 尚未实现（本期仅支持 zhipu）` };
+    }
+    return synthesizeProject(project, {
+      provider,
+      tailReader,
+      store,
+      model: settings.model,
+    });
+  };
+  return { config: opts.config, store, collect, synthesize, uiDir: opts.uiDir };
 }
 
 export interface StartOptions {

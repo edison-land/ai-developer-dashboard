@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
+import type { ProviderId } from "@ai-dashboard/core";
 import { useSaveSettings, useSettings } from "../hooks";
 
 export function SettingsView() {
   const { data } = useSettings();
   const save = useSaveSettings();
 
-  const [provider, setProvider] = useState<"anthropic" | "openai">("anthropic");
+  const [provider, setProvider] = useState<ProviderId>("zhipu");
   const [model, setModel] = useState("");
+  const [zhipuKey, setZhipuKey] = useState("");
   const [anthropicKey, setAnthropicKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
   const [autoRefreshMins, setAutoRefreshMins] = useState(0);
@@ -26,6 +28,7 @@ export function SettingsView() {
       model,
       autoRefreshMins,
       synthOnRefresh,
+      zhipuApiKey: zhipuKey || undefined,
       anthropicApiKey: anthropicKey || undefined,
       openaiApiKey: openaiKey || undefined,
     });
@@ -36,18 +39,30 @@ export function SettingsView() {
       <Field label="AI 总结的模型提供商">
         <select
           value={provider}
-          onChange={(e) => setProvider(e.target.value as "anthropic" | "openai")}
+          onChange={(e) => setProvider(e.target.value as ProviderId)}
           className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
         >
-          <option value="anthropic">Anthropic (Claude)</option>
-          <option value="openai">OpenAI (GPT)</option>
+          <option value="zhipu">智谱 Zhipu GLM（OpenAI 兼容，默认）</option>
+          <option value="anthropic">Anthropic (Claude，暂未接入)</option>
+          <option value="openai">OpenAI (GPT，暂未接入)</option>
         </select>
       </Field>
 
-      <Field label="模型（如 claude-haiku-4-5 / gpt-4o-mini）">
+      <Field label="模型（智谱默认 glm-4-flash-250414，免费、非推理；勿用 glm-4.7-flash 等推理模型）">
         <input
           value={model}
           onChange={(e) => setModel(e.target.value)}
+          placeholder="glm-4-flash-250414"
+          className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
+        />
+      </Field>
+
+      <Field label={`智谱 BigModel API Key${data?.hasZhipuKey ? "（已设置，留空则不修改）" : "（在 open.bigmodel.cn 生成，免费 flash 模型）"}`}>
+        <input
+          type="password"
+          value={zhipuKey}
+          onChange={(e) => setZhipuKey(e.target.value)}
+          placeholder={data?.hasZhipuKey ? "••••••••" : "xxxxxxxx.xxxxxxxx"}
           className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
         />
       </Field>

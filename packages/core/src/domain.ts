@@ -75,6 +75,9 @@ export interface StatusSnapshot {
 }
 
 // ── Synthesis ──────────────────────────────────────────────────────────────
+/** Which AI provider backs synthesis. Zhipu is the default (OpenAI-compatible BigModel API). */
+export type ProviderId = "zhipu" | "anthropic" | "openai";
+
 export interface TokenUsage {
   input: number;
   output: number;
@@ -86,11 +89,16 @@ export interface SynthResult {
   nextStep: string; // 1 sentence
   blockers: string[]; // 0-N
   model: string;
-  provider: "anthropic" | "openai";
+  provider: ProviderId;
   generatedAtMs: number;
   inputHash: string;
   tokenUsage?: TokenUsage;
 }
+
+/** Outcome of an on-demand synthesis attempt: cache hit, fresh result, or failure. */
+export type SynthOutcome =
+  | { ok: true; result: SynthResult; fromCache: boolean }
+  | { ok: false; error: string; cached?: SynthResult };
 
 // ── Unified card (what the UI renders) ─────────────────────────────────────
 export interface UnifiedProject {
@@ -122,19 +130,21 @@ export interface ActivityItem {
 
 // ── Settings (public shape — never contains raw API keys) ──────────────────
 export interface Settings {
-  provider: "anthropic" | "openai";
+  provider: ProviderId;
   model: string;
   hasAnthropicKey: boolean;
   hasOpenAIKey: boolean;
+  hasZhipuKey: boolean;
   autoRefreshMins: number; // 0 = off
   synthOnRefresh: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  provider: "anthropic",
-  model: "claude-haiku-4-5",
+  provider: "zhipu",
+  model: "glm-4-flash-250414",
   hasAnthropicKey: false,
   hasOpenAIKey: false,
+  hasZhipuKey: false,
   autoRefreshMins: 0,
   synthOnRefresh: false,
 };
@@ -156,15 +166,15 @@ export interface Store {
   allSynth(): Map<string, SynthCacheEntry>;
   getSettings(): Settings;
   /** Patch settings. Key values are stored internally; never returned raw by the API. */
-  setSettings(patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string }): void;
-  getApiKey(provider: "anthropic" | "openai"): string | undefined;
+  setSettings(patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string; zhipuApiKey?: string }): void;
+  getApiKey(provider: ProviderId): string | undefined;
 }
 
 export interface SynthOpts {
   model?: string;
 }
 export interface SynthProvider {
-  id: "anthropic" | "openai";
+  id: ProviderId;
   run(
     systemPrompt: string,
     userPrompt: string,

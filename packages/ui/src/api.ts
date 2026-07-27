@@ -1,4 +1,4 @@
-import type { Settings, Stage, UnifiedProject } from "@ai-dashboard/core";
+import type { Settings, Stage, SynthOutcome, UnifiedProject } from "@ai-dashboard/core";
 
 export interface ProjectsResponse {
   projects: UnifiedProject[];
@@ -111,11 +111,15 @@ export const api = {
   },
   getSettings: (): Promise<Settings> => request<Settings>("/api/settings"),
   putSettings: (
-    patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string },
+    patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string; zhipuApiKey?: string },
   ): Promise<Settings> =>
     request<Settings>("/api/settings", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(patch),
     }),
+  synthesize: (canonical: string): Promise<{ project: UnifiedProject; outcome: SynthOutcome }> =>
+    request(`/api/projects/${encodePath(canonical)}/synthesize`, { method: "POST" }),
+  synthesizeAll: (): Promise<{ total: number; cached: number; fresh: number; failed: number }> =>
+    request("/api/synthesize-all", { method: "POST" }),
 };

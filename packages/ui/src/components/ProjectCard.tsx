@@ -1,5 +1,6 @@
 import { RECENCY_LABELS, SOURCE_LABELS, STAGE, STAGE_LABELS, STAGE_ORDER, type Stage, type UnifiedProject } from "@ai-dashboard/core";
-import { useClearStage, useSetStage } from "../hooks";
+import { ApiError } from "../api";
+import { useClearStage, useSetStage, useSynthesize } from "../hooks";
 import { formatRelative, truncate } from "../lib";
 
 const STAGE_DOT: Record<Stage, string> = {
@@ -13,6 +14,17 @@ const STAGE_DOT: Record<Stage, string> = {
 export function ProjectCard({ project, now }: { project: UnifiedProject; now: number }) {
   const setStage = useSetStage();
   const clearStage = useClearStage();
+  const synth = useSynthesize();
+  const synthOutcome = synth.data?.outcome;
+  // A failed outcome (model error) comes back as HTTP 200 with outcome.ok=false;
+  // a network/server failure surfaces as synth.isError. Surface either inline.
+  const synthFailMsg =
+    (synthOutcome && !synthOutcome.ok ? synthOutcome.error : null) ??
+    (synth.isError
+      ? synth.error instanceof ApiError
+        ? (synth.error.serverMessage ?? synth.error.message)
+        : "总结请求失败"
+      : null);
   const git = project.git;
   const dirty = git?.dirtyFileCount ?? 0;
   const effectiveStage = project.stage;
@@ -108,9 +120,45 @@ export function ProjectCard({ project, now }: { project: UnifiedProject; now: nu
         </label>
       </div>
 
-      {!project.synth && (
-        <p className="mt-2 text-[11px] text-slate-600">点"总结"获取下一步与阻塞（Phase 3 上线）</p>
+      {project.synth && (
+        <div className="mt-2 space-y-1.5 border-t border-slate-800 pt-2 text-xs">
+          <p className="text-slate-300">{project.synth.summary}</p>
+          <p className="text-slate-400">
+            <span className="text-slate-500">下一步：</span>
+            {project.synth.nextStep}
+          </p>
+          {project.synth.blockers.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {project.synth.blockers.map((b, i) => (
+                <span key={i} className="rounded bg-amber-950/60 px-1.5 py-0.5 text-[10px] text-amber-300">
+                  ⛔ {b}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="text-[10px] text-slate-600">
+            {project.synth.provider}/{project.synth.model} · {formatRelative(project.synth.generatedAtMs, now)}
+            {project.synthStale && <span className="ml-1 text-amber-500">· 输入已变</span>}
+          </p>
+        </div>
       )}
+
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          onClick={() => synth.mutate(project.canonicalPath)}
+          disabled={synth.isPending}
+          className="rounded bg-slate-800 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+        >
+          {synth.isPending ? "总结中…" : project.synth ? "🔄 重新总结" : "✨ 总结"}
+        </button>
+        {project.synthStale && project.synth && !synth.isPending && (
+          <span className="text-[10px] text-amber-500">建议重新总结</span>
+        )}
+        {!project.synth && !synth.isPending && (
+          <span className="text-[10px] text-slate-600">点总结获取下一步与阻塞</span>
+        )}
+      </div>
+      {synthFailMsg && <p className="mt-1 text-[11px] text-rose-400">⚠ {synthFailMsg}</p>}
     </div>
   );
 }

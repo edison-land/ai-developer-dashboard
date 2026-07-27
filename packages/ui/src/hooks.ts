@@ -38,6 +38,16 @@ export function useClearStage() {
   });
 }
 
+/** On-demand synthesis for one project. Invalidates the project list so the card
+ *  refetches with the new synth result (summary/nextStep/blockers). */
+export function useSynthesize() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (canonical: string) => api.synthesize(canonical),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+  });
+}
+
 export function useSettings() {
   return useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
 }

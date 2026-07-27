@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
-import { DEFAULT_SETTINGS, type Settings, type Stage, type Store, type SynthCacheEntry, type SynthResult } from "./domain.js";
+import { DEFAULT_SETTINGS, type ProviderId, type Settings, type Stage, type Store, type SynthCacheEntry, type SynthResult } from "./domain.js";
 import { pathKey } from "./paths.js";
 
 // Loaded via createRequire so bundlers/transformers (Vite, vitest) never see a
@@ -141,12 +141,13 @@ export class SqliteStore implements Store {
       model: map.get("model") || DEFAULT_SETTINGS.model,
       hasAnthropicKey: Boolean(map.get("anthropic_api_key")),
       hasOpenAIKey: Boolean(map.get("openai_api_key")),
+      hasZhipuKey: Boolean(map.get("zhipu_api_key")),
       autoRefreshMins: Number(map.get("auto_refresh_mins") ?? DEFAULT_SETTINGS.autoRefreshMins),
       synthOnRefresh: (map.get("synth_on_refresh") ?? "0") === "1",
     };
   }
 
-  setSettings(patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string }): void {
+  setSettings(patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string; zhipuApiKey?: string }): void {
     for (const k of SETTING_KEYS) {
       const v = patch[k];
       if (v !== undefined) this.stmts.upsertSetting.run(k, String(v));
@@ -157,10 +158,14 @@ export class SqliteStore implements Store {
     if (patch.openaiApiKey !== undefined) {
       this.stmts.upsertSetting.run("openai_api_key", patch.openaiApiKey);
     }
+    if (patch.zhipuApiKey !== undefined) {
+      this.stmts.upsertSetting.run("zhipu_api_key", patch.zhipuApiKey);
+    }
   }
 
-  getApiKey(provider: "anthropic" | "openai"): string | undefined {
-    const key = provider === "anthropic" ? "anthropic_api_key" : "openai_api_key";
+  getApiKey(provider: ProviderId): string | undefined {
+    const key =
+      provider === "zhipu" ? "zhipu_api_key" : provider === "anthropic" ? "anthropic_api_key" : "openai_api_key";
     const row = this.stmts.getSetting.get(key) as { value: string } | undefined;
     const v = row?.value;
     return v && v.length > 0 ? v : undefined;
