@@ -1,0 +1,159 @@
+import fs from "node:fs";
+import path from "node:path";
+import { Hono, type Context } from "hono";
+import {
+  type DashboardConfig,
+  type Stage,
+  type Store,
+  type UnifiedProject,
+  pathKey,
+  resolveConfig,
+  STAGE,
+} from "@ai-dashboard/core/node";
+import { decodePath } from "./pathParam.js";
+
+export interface ServerDeps {
+  config: DashboardConfig;
+  store: Store;
+  /** Recompute the unified project list (adapters + git + merge). */
+  collect: () => Promise<UnifiedProject[]>;
+  /** Optional absolute path to the built UI; if absent, the API still works. */
+  uiDir?: string;
+}
+
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".ico": "image/x-icon",
+  ".woff2": "font/woff2",
+  ".woff": "font/woff",
+  ".map": "application/json",
+};
+
+/** Minimal, dependency-free static + SPA-fallback handler for the built UI. */
+function uiHandler(uiDir: string) {
+  return async (c: Context): Promise<Response> => {
+    const reqPath = decodeURIComponent(new URL(c.req.url).pathname);
+    let rel = reqPath === "/" ? "/index.html" : reqPath;
+    const fp = path.normalize(path.join(uiDir, rel));
+    if (!fp.startsWith(uiDir)) return c.text("forbidden", 403);
+    const send = (file: string): Response => {
+      const data = fs.readFileSync(file);
+      return new Response(data, {
+        headers: { "content-type": MIME[path.extname(file).toLowerCase()] ?? "application/octet-stream" },
+      });
+    };
+    try {
+      if (fs.existsSync(fp) && fs.statSync(fp).isFile()) return send(fp);
+    } catch {
+      // fall through to SPA fallback
+    }
+    const indexHtml = path.join(uiDir, "index.html");
+    if (fs.existsSync(indexHtml)) return send(indexHtml);
+    return c.text("UI not built. Run `pnpm build:ui`.", 404);
+  };
+}
+
+export function createApp(deps: ServerDeps): Hono {
+  const app = new Hono();
+  let state: { projects: UnifiedProject[]; generatedAtMs: number } = { projects: [], generatedAtMs: 0 };
+  let loadPromise: Promise<void> | null = null;
+
+  const refresh = async (): Promise<void> => {
+    state = { projects: await deps.collect(), generatedAtMs: Date.now() };
+  };
+  const ensureLoaded = async (): Promise<void> => {
+    if (!loadPromise) loadPromise = refresh();
+    await loadPromise;
+  };
+  const findProject = (canonical: string): UnifiedProject | undefined =>
+    state.projects.find((p) => pathKey(p.canonicalPath) === pathKey(canonical));
+
+  const api = new Hono();
+
+  api.get("/health", (c) =>
+    c.json({
+      ok: true,
+      dataRoot: deps.config.dataDir,
+      dbPath: deps.config.dbPath,
+      claudeCodeAvailable: fs.existsSync(deps.config.claudeJson),
+      codexAvailable: fs.existsSync(deps.config.codexDb),
+      gitAvailable: true,
+      projectCount: state.projects.length,
+      generatedAtMs: state.generatedAtMs,
+    }),
+  );
+
+  api.get("/projects", async (c) => {
+    await ensureLoaded();
+    return c.json({ projects: state.projects, generatedAtMs: state.generatedAtMs });
+  });
+
+  api.post("/refresh", async (c) => {
+    await refresh();
+    return c.json({ projects: state.projects, generatedAtMs: state.generatedAtMs });
+  });
+
+  api.get("/projects/:enc", async (c) => {
+    await ensureLoaded();
+    const project = findProject(decodePath(c.req.param("enc")));
+    if (!project) return c.json({ error: "not found" }, 404);
+    return c.json({ project });
+  });
+
+  api.patch("/projects/:enc/stage", async (c) => {
+    await ensureLoaded();
+    const body = (await c.req.json().catch(() => ({}))) as { stage?: string };
+    const stage = body?.stage as Stage | undefined;
+    if (!stage || !(STAGE as readonly string[]).includes(stage)) {
+      return c.json({ error: "invalid stage" }, 400);
+    }
+    const canonical = decodePath(c.req.param("enc"));
+    if (!findProject(canonical)) return c.json({ error: "not found" }, 404);
+    deps.store.setStageOverride(canonical, stage);
+    await refresh();
+    return c.json({ project: findProject(canonical) });
+  });
+
+  api.delete("/projects/:enc/stage", async (c) => {
+    const canonical = decodePath(c.req.param("enc"));
+    deps.store.clearStageOverride(canonical);
+    await refresh();
+    return c.json({ project: findProject(canonical) });
+  });
+
+  api.get("/settings", (c) => c.json(deps.store.getSettings()));
+  api.put("/settings", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) ?? {};
+    deps.store.setSettings(body);
+    return c.json(deps.store.getSettings());
+  });
+
+  api.get("/activity", (c) => c.json({ items: [] }));
+
+  app.route("/api", api);
+
+  if (deps.uiDir && fs.existsSync(deps.uiDir)) {
+    app.get("/*", uiHandler(deps.uiDir));
+  }
+
+  // Surface the cause of a thrown error (e.g. a failing collect()) as JSON
+  // instead of Hono's default empty 500, so the UI can show what went wrong.
+  // Safe to expose internals: the server binds 127.0.0.1 for a single local user.
+  app.onError((err, c) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[dashboard] request failed:", err);
+    return c.json({ error: "internal_error", message }, 500);
+  });
+
+  return app;
+}
+
+export type { DashboardConfig };
+export { resolveConfig };

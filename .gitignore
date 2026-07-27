@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+*.log
+.DS_Store
+# local dev data (never commit user's dashboard db / keys)
+.ai-dashboard/
+.env
+.env.local
