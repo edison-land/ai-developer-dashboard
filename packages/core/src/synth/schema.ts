@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { STAGE } from "../domain.js";
+import { ATTENTION_KIND, STAGE } from "../domain.js";
 
 /**
  * The strict JSON shape every synthesis result must satisfy. The provider is
@@ -11,6 +11,7 @@ export const SynthSchema = z.object({
   summary: z.string().min(1).max(280),
   nextStep: z.string().min(1).max(200),
   blockers: z.array(z.string().max(120)).max(5).default([]),
+  attention: z.enum(ATTENTION_KIND).default("unknown"),
 });
 
 export type SynthPayload = z.infer<typeof SynthSchema>;

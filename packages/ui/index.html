@@ -3,8 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#020617" />
+    <meta name="theme-color" content="#f4f0e8" />
     <title>AI Developer Dashboard</title>
+    <script>
+      (() => {
+        try {
+          const preference = localStorage.getItem("ai-dashboard:theme") || "system";
+          const systemDark = matchMedia("(prefers-color-scheme: dark)").matches;
+          const theme =
+            preference === "dark" || (preference === "system" && systemDark)
+              ? "dark"
+              : "light";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+          document
+            .querySelector('meta[name="theme-color"]')
+            ?.setAttribute("content", theme === "dark" ? "#07101f" : "#f4f0e8");
+        } catch {
+          document.documentElement.dataset.theme = "light";
+          document.documentElement.style.colorScheme = "light";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

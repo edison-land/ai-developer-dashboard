@@ -2,22 +2,239 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --page: #f4f0e8;
+  --page-deep: #ebe5da;
+  --surface: #fffdf8;
+  --surface-elevated: #ffffff;
+  --surface-soft: #ede8de;
+  --surface-hover: #f7f3eb;
+  --text: #1c2430;
+  --text-soft: #3f4a5a;
+  --muted: #697386;
+  --faint: #8b918f;
+  --border: #d7d1c5;
+  --border-strong: #b9b2a6;
+  --accent: #2457d6;
+  --accent-strong: #1747c5;
+  --accent-soft: #e7edff;
+  --accent-contrast: #ffffff;
+  --warning: #a96f12;
+  --warning-soft: #fff2d4;
+  --success: #12805c;
+  --success-soft: #dcf3e9;
+  --danger: #c63d42;
+  --danger-soft: #fde8e7;
+  --focus-pin-from: #2457d6;
+  --focus-pin-to: #12805c;
+  --shadow: 0 18px 55px rgba(52, 45, 34, 0.1);
+  --shadow-soft: 0 8px 24px rgba(52, 45, 34, 0.075);
+  --ambient:
+    radial-gradient(circle at 8% 0%, rgba(36, 87, 214, 0.06), transparent 28%),
+    linear-gradient(rgba(92, 79, 55, 0.018) 1px, transparent 1px);
+}
+
+[data-theme="dark"] {
   color-scheme: dark;
+  --page: #07101f;
+  --page-deep: #050b16;
+  --surface: #0d192b;
+  --surface-elevated: #122038;
+  --surface-soft: #111f34;
+  --surface-hover: #172943;
+  --text: #eef4ff;
+  --text-soft: #c4cfdf;
+  --muted: #8a97ad;
+  --faint: #66748b;
+  --border: #263957;
+  --border-strong: #3a5274;
+  --accent: #63d7ff;
+  --accent-strong: #86e1ff;
+  --accent-soft: rgba(99, 215, 255, 0.12);
+  --accent-contrast: #06111d;
+  --warning: #e1a84b;
+  --warning-soft: rgba(225, 168, 75, 0.13);
+  --success: #46c89a;
+  --success-soft: rgba(70, 200, 154, 0.13);
+  --danger: #f06b72;
+  --danger-soft: rgba(240, 107, 114, 0.12);
+  --focus-pin-from: #63d7ff;
+  --focus-pin-to: #46c89a;
+  --shadow: 0 22px 65px rgba(0, 0, 0, 0.32);
+  --shadow-soft: 0 9px 28px rgba(0, 0, 0, 0.24);
+  --ambient:
+    radial-gradient(circle at 8% 0%, rgba(99, 215, 255, 0.07), transparent 30%),
+    linear-gradient(rgba(159, 195, 232, 0.022) 1px, transparent 1px);
 }
 
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
-  @apply bg-slate-950 text-slate-200 antialiased;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
-  /* Dashboard is number-dense (counts, times, ahead/behind); tabular figures keep
-     columns from jittering on refresh. Only affects digit glyphs, safe globally. */
+  margin: 0;
+  background-color: var(--page);
+  background-image: var(--ambient);
+  background-size: auto, 100% 28px;
+  color: var(--text);
+  font-family: Bahnschrift, "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
   font-variant-numeric: tabular-nums;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+::selection {
+  color: var(--accent-contrast);
+  background: var(--accent);
+}
+
+@layer components {
+  .ui-icon-button {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-full transition;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    background: var(--surface);
+  }
+
+  .ui-icon-button:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+    background: var(--surface-hover);
+    transform: translateY(-1px);
+  }
+
+  .ui-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition;
+    border: 1px solid var(--border);
+    color: var(--text-soft);
+    background: var(--surface);
+  }
+
+  .ui-button:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+    background: var(--surface-hover);
+  }
+
+  .ui-button-primary {
+    color: var(--accent-contrast);
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
+  .ui-button-primary:hover {
+    color: var(--accent-contrast);
+    border-color: var(--accent-strong);
+    background: var(--accent-strong);
+  }
+
+  .ui-surface {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .ui-panel {
+    @apply rounded-2xl;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .ui-card {
+    @apply rounded-2xl transition;
+    border: 1px solid var(--border);
+    background: var(--surface-elevated);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .ui-card:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+
+  .ui-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold;
+    color: var(--muted);
+    background: var(--surface-soft);
+  }
+
+  .ui-chip-accent {
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+  }
+
+  .ui-divider {
+    border-color: var(--border);
+  }
+
+  .ui-text {
+    color: var(--text);
+  }
+
+  .ui-text-soft {
+    color: var(--text-soft);
+  }
+
+  .ui-muted {
+    color: var(--muted);
+  }
+
+  .ui-faint {
+    color: var(--faint);
+  }
+
+  .ui-accent {
+    color: var(--accent-strong);
+  }
+
+  .ui-warning {
+    color: var(--warning);
+  }
+
+  .ui-success {
+    color: var(--success);
+  }
+
+  .ui-danger {
+    color: var(--danger);
+  }
+
+  .ui-input {
+    @apply w-full rounded-lg px-3 py-2 text-sm outline-none transition;
+    border: 1px solid var(--border);
+    color: var(--text);
+    background: var(--surface);
+  }
+
+  .ui-input::placeholder {
+    color: var(--faint);
+  }
+
+  .ui-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
 }
 
 /* Soft fade-in for the kanban hover overlay (and any other transient surface). */
@@ -32,6 +249,181 @@ body {
 
 .kf-fade-in {
   animation: kf-fade-in 120ms ease-out;
+}
+
+@keyframes page-rise {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-rise {
+  animation: page-rise 180ms ease-out both;
+}
+
+.focus-card-pinned {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--surface-elevated), var(--surface-elevated)) padding-box,
+    linear-gradient(135deg, var(--focus-pin-from), var(--focus-pin-to)) border-box;
+}
+
+.focus-card-pinned:hover {
+  border-color: transparent;
+}
+
+.filter-option {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  transition:
+    color 140ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.filter-option:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.filter-option[data-active="true"] {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-soft);
+}
+
+.stage-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.stage-card-next {
+  max-height: 0;
+  margin-top: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    max-height 180ms ease,
+    margin-top 180ms ease,
+    opacity 140ms ease,
+    transform 180ms ease;
+}
+
+.stage-card:hover .stage-card-next,
+.stage-card:focus-visible .stage-card-next {
+  max-height: 96px;
+  margin-top: 10px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.project-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.project-list-open {
+  display: block;
+  grid-column: 1 / -1;
+}
+
+.project-list-summary {
+  margin-top: 8px;
+}
+
+.project-list-stage {
+  grid-column: 1;
+  justify-self: start;
+}
+
+.project-list-archive {
+  grid-column: 2;
+}
+
+.project-list-time {
+  grid-column: 3;
+  justify-self: start;
+}
+
+/* Tailwind's optional line-clamp utility is not enabled in this workspace. */
+.line-clamp-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (min-width: 640px) {
+  .stage-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .project-list-row {
+    grid-template-columns:
+      minmax(390px, 1fr)
+      auto
+      auto
+      minmax(86px, auto);
+  }
+
+  .project-list-open {
+    display: grid;
+    grid-column: auto;
+    grid-template-columns: minmax(170px, 0.85fr) minmax(220px, 1.5fr);
+    align-items: center;
+    gap: 12px;
+  }
+
+  .project-list-summary {
+    margin-top: 0;
+  }
+
+  .project-list-stage,
+  .project-list-archive,
+  .project-list-time {
+    grid-column: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .stage-board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1440px) {
+  .stage-board {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Honor OS "reduce motion": neutralize animations/transitions and the busy ping. */

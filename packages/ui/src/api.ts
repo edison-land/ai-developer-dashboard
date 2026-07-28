@@ -1,4 +1,11 @@
-import type { ActivityItem, Settings, Stage, SynthOutcome, UnifiedProject } from "@ai-dashboard/core";
+import type {
+  ActivityItem,
+  FocusPreferences,
+  Settings,
+  Stage,
+  SynthOutcome,
+  UnifiedProject,
+} from "@ai-dashboard/core";
 
 export interface ProjectsResponse {
   projects: UnifiedProject[];
@@ -6,6 +13,13 @@ export interface ProjectsResponse {
 }
 export interface ActivityResponse {
   items: ActivityItem[];
+  generatedAtMs: number;
+}
+export interface SynthesizeAllResponse {
+  total: number;
+  cached: number;
+  fresh: number;
+  failed: number;
   generatedAtMs: number;
 }
 export interface HealthResponse {
@@ -126,9 +140,19 @@ export const api = {
     }),
   synthesize: (canonical: string): Promise<{ project: UnifiedProject; outcome: SynthOutcome }> =>
     request(`/api/projects/${encodePath(canonical)}/synthesize`, { method: "POST" }),
-  synthesizeAll: (): Promise<{ total: number; cached: number; fresh: number; failed: number }> =>
-    request("/api/synthesize-all", { method: "POST" }),
+  synthesizeAll: (): Promise<SynthesizeAllResponse> =>
+    request<SynthesizeAllResponse>("/api/synthesize-all", { method: "POST" }),
   activity: (): Promise<ActivityResponse> => request<ActivityResponse>("/api/activity"),
+  focusPreferences: (localDate: string): Promise<FocusPreferences> =>
+    request<FocusPreferences>(
+      `/api/focus-preferences?localDate=${encodeURIComponent(localDate)}`,
+    ),
+  putFocusPreferences: (preferences: FocusPreferences): Promise<FocusPreferences> =>
+    request<FocusPreferences>("/api/focus-preferences", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(preferences),
+    }),
   archive: async (canonical: string): Promise<void> => {
     await request(`/api/projects/${encodePath(canonical)}/archive`, { method: "POST" });
   },

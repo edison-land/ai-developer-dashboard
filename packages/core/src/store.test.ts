@@ -72,4 +72,56 @@ describe("SqliteStore", () => {
     const sc = s.allSynth();
     expect(sc.get("d:/c")?.result.stage).toBe("building");
   });
+
+  it("persists ordered focus pins and same-day dismissals", () => {
+    const s = new SqliteStore(dbPath);
+    s.setFocusPreferences({
+      pinnedPaths: ["D:/B", "D:/A"],
+      dismissedPaths: ["D:/C"],
+      localDate: "2026-07-28",
+    });
+    expect(s.getFocusPreferences("2026-07-28")).toEqual({
+      pinnedPaths: ["d:/b", "d:/a"],
+      dismissedPaths: ["d:/c"],
+      localDate: "2026-07-28",
+    });
+    expect(s.getFocusPreferences("2026-07-29")).toEqual({
+      pinnedPaths: ["d:/b", "d:/a"],
+      dismissedPaths: [],
+      localDate: "2026-07-29",
+    });
+  });
+
+  it("validates focus uniqueness and pin/dismiss overlap", () => {
+    const s = new SqliteStore(dbPath);
+    expect(() =>
+      s.setFocusPreferences({
+        pinnedPaths: ["D:/A", "d:/a"],
+        dismissedPaths: [],
+        localDate: "2026-07-28",
+      }),
+    ).toThrow(/unique/);
+    expect(() =>
+      s.setFocusPreferences({
+        pinnedPaths: ["D:/A"],
+        dismissedPaths: ["d:/a"],
+        localDate: "2026-07-28",
+      }),
+    ).toThrow(/both pinned and dismissed/);
+  });
+
+  it("clears a project's focus preference when it is archived", () => {
+    const s = new SqliteStore(dbPath);
+    s.setFocusPreferences({
+      pinnedPaths: ["D:/A"],
+      dismissedPaths: ["D:/B"],
+      localDate: "2026-07-28",
+    });
+    s.archive("d:\\a", 123);
+    expect(s.getFocusPreferences("2026-07-28")).toEqual({
+      pinnedPaths: [],
+      dismissedPaths: ["d:/b"],
+      localDate: "2026-07-28",
+    });
+  });
 });

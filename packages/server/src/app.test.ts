@@ -65,7 +65,7 @@ describe("createApp", () => {
   it("GET /api/health returns ok with dataRoot and dbPath", async () => {
     const res = await createApp(deps()).request("/api/health");
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.ok).toBe(true);
     expect(body).toHaveProperty("dataRoot");
     expect(body).toHaveProperty("dbPath");
@@ -74,7 +74,7 @@ describe("createApp", () => {
   it("GET /api/projects returns the collected projects", async () => {
     const res = await createApp(deps()).request("/api/projects");
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.projects).toHaveLength(2);
     expect(body.projects.map((p: UnifiedProject) => p.canonicalPath)).toContain("D:/Foo");
   });
@@ -82,7 +82,7 @@ describe("createApp", () => {
   it("POST /api/refresh recomputes", async () => {
     const res = await createApp(deps()).request("/api/refresh", { method: "POST" });
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.generatedAtMs).toBeGreaterThan(0);
   });
 
@@ -112,11 +112,59 @@ describe("createApp", () => {
       headers: { "content-type": "application/json" },
     });
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.provider).toBe("openai");
     expect(body.hasAnthropicKey).toBe(true);
     expect(body.anthropicApiKey).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain("sk-secret");
+  });
+
+  it("PUT then GET /api/focus-preferences preserves order and same-day dismissals", async () => {
+    const put = await createApp(deps()).request("/api/focus-preferences", {
+      method: "PUT",
+      body: JSON.stringify({
+        pinnedPaths: ["D:/Bar", "D:/Foo"],
+        dismissedPaths: ["D:/Later"],
+        localDate: "2026-07-28",
+      }),
+      headers: { "content-type": "application/json" },
+    });
+    expect(put.status).toBe(200);
+    const putBody = (await put.json()) as any;
+    expect(putBody.pinnedPaths).toEqual(["d:/bar", "d:/foo"]);
+
+    const get = await createApp(deps()).request(
+      "/api/focus-preferences?localDate=2026-07-28",
+    );
+    expect(get.status).toBe(200);
+    const getBody = (await get.json()) as any;
+    expect(getBody).toEqual({
+      pinnedPaths: ["d:/bar", "d:/foo"],
+      dismissedPaths: ["d:/later"],
+      localDate: "2026-07-28",
+    });
+  });
+
+  it("focus preferences reject invalid dates, duplicate paths, overlap, and four pins", async () => {
+    const app = createApp(deps());
+    const invalidBodies = [
+      { pinnedPaths: [], dismissedPaths: [], localDate: "2026-02-30" },
+      { pinnedPaths: ["D:/A", "d:/a"], dismissedPaths: [], localDate: "2026-07-28" },
+      { pinnedPaths: ["D:/A"], dismissedPaths: ["d:/a"], localDate: "2026-07-28" },
+      {
+        pinnedPaths: ["D:/A", "D:/B", "D:/C", "D:/D"],
+        dismissedPaths: [],
+        localDate: "2026-07-28",
+      },
+    ];
+    for (const body of invalidBodies) {
+      const response = await app.request("/api/focus-preferences", {
+        method: "PUT",
+        body: JSON.stringify(body),
+        headers: { "content-type": "application/json" },
+      });
+      expect(response.status).toBe(400);
+    }
   });
 
   it("returns 500 JSON with the cause when collect throws (for UI diagnosis)", async () => {
@@ -130,7 +178,7 @@ describe("createApp", () => {
     };
     const res = await createApp(throwing).request("/api/projects");
     expect(res.status).toBe(500);
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.error).toBe("internal_error");
     expect(body.message).toContain("boom: sqlite locked");
   });
@@ -174,6 +222,72 @@ describe("createApp", () => {
     expect(body.total).toBe(2); // both fixtures are "today" (non-stale)
     expect(body.fresh).toBe(2);
     expect(body.failed).toBe(0);
+  });
+
+  it("POST /api/synthesize-all includes stale projects and excludes archived projects", async () => {
+    collected = [
+      { ...makeProject("D:/Old"), recencyBucket: "stale" },
+      makeProject("D:/Archived"),
+      makeProject("D:/Current"),
+    ];
+    store.archive("D:/Archived", 1234);
+    const seen: string[] = [];
+    const d: ServerDeps = {
+      config: cfg,
+      store,
+      collect: async () => collected,
+      synthesize: async (project) => {
+        seen.push(project.canonicalPath);
+        return freshOutcome();
+      },
+    };
+
+    const res = await createApp(d).request("/api/synthesize-all", { method: "POST" });
+
+    expect(res.status).toBe(200);
+    expect(seen).toEqual(["D:/Old", "D:/Current"]);
+  });
+
+  it("POST /api/synthesize-all continues after a project fails and reports final totals", async () => {
+    const seen: string[] = [];
+    const d: ServerDeps = {
+      config: cfg,
+      store,
+      collect: async () => collected,
+      synthesize: async (project) => {
+        seen.push(project.canonicalPath);
+        return project.canonicalPath === "D:/Foo"
+          ? { ok: false, error: "provider unavailable" }
+          : { ...freshOutcome(), fromCache: true };
+      },
+    };
+
+    const res = await createApp(d).request("/api/synthesize-all", { method: "POST" });
+    const body = (await res.json()) as any;
+
+    expect(seen).toEqual(["D:/Foo", "D:/Bar"]);
+    expect(body).toMatchObject({ total: 2, cached: 1, fresh: 0, failed: 1 });
+  });
+
+  it("POST /api/synthesize-all runs at most one project synthesis at a time", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const d: ServerDeps = {
+      config: cfg,
+      store,
+      collect: async () => collected,
+      synthesize: async () => {
+        active++;
+        maxActive = Math.max(maxActive, active);
+        await Promise.resolve();
+        active--;
+        return freshOutcome();
+      },
+    };
+
+    await createApp(d).request("/api/synthesize-all", { method: "POST" });
+
+    expect(maxActive).toBe(1);
   });
 
   it("GET /api/activity returns the merged cross-project timeline, newest-first", async () => {
@@ -229,11 +343,17 @@ describe("createApp", () => {
   });
 
   it("POST then DELETE /api/projects/:enc/archive archives and restores", async () => {
+    store.setFocusPreferences({
+      pinnedPaths: ["D:/Foo"],
+      dismissedPaths: [],
+      localDate: "2026-07-28",
+    });
     const archiveRes = await createApp(deps()).request(`/api/projects/${enc("D:/Foo")}/archive`, {
       method: "POST",
     });
     expect(archiveRes.status).toBe(200);
     expect(store.allArchived().has("d:/foo")).toBe(true);
+    expect(store.getFocusPreferences("2026-07-28").pinnedPaths).toEqual([]);
 
     const listRes = await createApp(deps()).request("/api/projects");
     const listBody = (await listRes.json()) as any;

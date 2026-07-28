@@ -6,13 +6,15 @@ const DAY = 24 * 60 * 60 * 1000;
 export type RecencyFilter = "all" | "today" | "week" | "month" | "older";
 
 export interface ProjectFilter {
+  /** Case-insensitive project name/path/summary search. */
+  query: string;
   /** R1: selected sources. Empty = no source filter (match all). OR semantics. */
   sources: SourceId[];
   /** R2: time preset. */
   recency: RecencyFilter;
 }
 
-export const DEFAULT_FILTER: ProjectFilter = { sources: [], recency: "all" };
+export const DEFAULT_FILTER: ProjectFilter = { query: "", sources: [], recency: "all" };
 
 export const RECENCY_OPTIONS: { value: RecencyFilter; label: string }[] = [
   { value: "all", label: "全部" },
@@ -32,6 +34,20 @@ export const SOURCE_OPTIONS: SourceId[] = ["claude-code", "codex", "git"];
  */
 export function filterProjects(projects: UnifiedProject[], f: ProjectFilter, now: number): UnifiedProject[] {
   return projects.filter((p) => {
+    const query = f.query.trim().toLocaleLowerCase();
+    if (query) {
+      const haystack = [
+        p.name,
+        p.displayPath,
+        p.lastActionOneLiner,
+        p.synth?.summary,
+        p.synth?.nextStep,
+      ]
+        .filter(Boolean)
+        .join("\n")
+        .toLocaleLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
     if (f.sources.length > 0 && !f.sources.some((s) => p.sources.includes(s))) return false;
     if (f.recency !== "all") {
       const age = Math.max(0, now - p.lastActiveMs);
@@ -48,5 +64,5 @@ export function filterProjects(projects: UnifiedProject[], f: ProjectFilter, now
 
 /** Whether a filter differs from the default (drives the "清除" affordance). */
 export function isDefaultFilter(f: ProjectFilter): boolean {
-  return f.sources.length === 0 && f.recency === "all";
+  return f.query.trim() === "" && f.sources.length === 0 && f.recency === "all";
 }

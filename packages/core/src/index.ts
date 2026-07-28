@@ -7,3 +7,4 @@ export * from "./domain.js";
 export * from "./paths.js";
 export * from "./adapters/types.js";
 export * from "./activity.js";
+export * from "./focus.js";

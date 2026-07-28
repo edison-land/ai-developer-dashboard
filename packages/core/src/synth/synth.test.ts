@@ -67,7 +67,22 @@ describe("schema", () => {
   it("defaults blockers to [] when omitted", () => {
     const r = parseSynthJson({ stage: "done", summary: "s", nextStep: "n" });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.blockers).toEqual([]);
+    if (r.ok) {
+      expect(r.value.blockers).toEqual([]);
+      expect(r.value.attention).toBe("unknown");
+    }
+  });
+
+  it("accepts the attention classification used by focus recommendations", () => {
+    const r = parseSynthJson({
+      stage: "stalled",
+      summary: "等待接口恢复",
+      nextStep: "限额恢复后重试",
+      blockers: ["接口限额"],
+      attention: "waiting",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.attention).toBe("waiting");
   });
 
   it("rejects a bad stage, a missing field, and garbage", () => {
@@ -104,6 +119,8 @@ describe("buildSynthBundle", () => {
     });
     const b = buildSynthBundle(p, stubTail);
     expect(b.systemPrompt).toBe(SYNTH_SYSTEM_PROMPT);
+    expect(b.systemPrompt).toContain("user-action");
+    expect(b.systemPrompt).toContain("waiting");
     expect(b.userPrompt).toContain("fix the login bug");
     expect(b.userPrompt).toContain("用户：帮我把登录按钮修好");
     expect(b.userPrompt).toContain("分支 main");

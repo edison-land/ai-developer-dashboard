@@ -14,6 +14,9 @@ import { basename, displayPath, pathKey } from "./paths.js";
 /** Source preference order for picking the representative canonical path + one-liner. */
 const SOURCE_RANK: Record<SourceId, number> = { "claude-code": 0, codex: 1, git: 2 };
 const SOURCE_ORDER: SourceId[] = ["claude-code", "codex", "git"];
+/** Bump when the synthesis output contract changes so old cache rows become
+ * stale exactly once and can be refreshed into the new shape. */
+export const SYNTH_SCHEMA_VERSION = 2;
 
 /**
  * Content hash of the inputs that a synthesis depends on. When this matches the
@@ -26,6 +29,7 @@ export function computeInputHash(input: {
   lastActionOneLiner?: string;
 }): string {
   const parts = [
+    `schema:${SYNTH_SCHEMA_VERSION}`,
     String(input.lastActiveMs ?? 0),
     input.git?.headSha ?? "",
     String(input.git?.dirtyFileCount ?? 0),

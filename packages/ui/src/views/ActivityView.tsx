@@ -1,18 +1,8 @@
-import { SOURCE_LABELS, type SourceId } from "@ai-dashboard/core";
+import { SOURCE_LABELS } from "@ai-dashboard/core";
 import { ErrorBanner } from "../components/ErrorBanner";
+import { SourceMark } from "../components/SourceMark";
 import { useActivity } from "../hooks";
 import { formatRelative, truncate } from "../lib";
-
-const SOURCE_STYLE: Record<SourceId, string> = {
-  "claude-code": "bg-sky-900/60 text-sky-300",
-  codex: "bg-violet-900/60 text-violet-300",
-  git: "bg-emerald-900/60 text-emerald-300",
-};
-const SOURCE_GLYPH: Record<SourceId, string> = {
-  "claude-code": "✦",
-  codex: "◈",
-  git: "⎇",
-};
 
 export function ActivityView() {
   const activity = useActivity();
@@ -23,49 +13,61 @@ export function ActivityView() {
     return <ErrorBanner error={activity.error} onRetry={() => activity.refetch()} />;
   }
   if (activity.isLoading) {
-    return <p className="py-12 text-center text-slate-500">加载活动流…</p>;
-  }
-  if (items.length === 0) {
-    return (
-      <p className="py-12 text-center text-slate-500">
-        还没有活动。打开 Claude Code / Codex 跑一会，或提交点代码，再来刷新。
-      </p>
-    );
+    return <p className="py-16 text-center text-sm ui-muted">正在整理最近动态…</p>;
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <p className="mb-3 text-xs text-slate-500">
-        跨项目时间线 · 合并 Claude Code、Codex 与 git 最近动作，按时间倒序。
-      </p>
-      <ul className="space-y-2">
-        {items.map((it, i) => (
-          <li
-            key={`${it.canonicalPath}-${it.source}-${it.atMs}-${i}`}
-            className="rounded-lg border border-slate-800 bg-slate-900/60 p-3"
-          >
-            <div className="flex items-start gap-3">
+    <div className="page-rise mx-auto max-w-4xl">
+      <div>
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] ui-accent">
+          Activity stream
+        </p>
+        <h2 className="mt-1 text-2xl font-bold tracking-[-0.035em] ui-text">最近动态</h2>
+        <p className="mt-1 text-sm ui-muted">
+          Claude Code、Codex 与 Git 的最近动作，按时间合并。
+        </p>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="ui-panel mt-6 px-6 py-14 text-center">
+          <h3 className="text-base font-bold ui-text">还没有可展示的动态</h3>
+          <p className="mt-2 text-sm ui-muted">
+            打开开发工具运行一会，或提交代码后再刷新。
+          </p>
+        </div>
+      ) : (
+        <ol className="relative mt-7 space-y-3 before:absolute before:bottom-5 before:left-[18px] before:top-5 before:w-px before:bg-[var(--border)]">
+          {items.map((item, index) => (
+            <li
+              key={`${item.canonicalPath}-${item.source}-${item.atMs}-${index}`}
+              className="ui-panel relative ml-0 grid grid-cols-[36px_minmax(0,1fr)] gap-3 p-4"
+            >
               <span
-                className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${SOURCE_STYLE[it.source]}`}
-                title={SOURCE_LABELS[it.source]}
-                aria-hidden="true"
+                className="relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border ui-divider"
+                style={{ background: "var(--surface-elevated)" }}
               >
-                {SOURCE_GLYPH[it.source]}
+                <SourceMark source={item.source} />
               </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-semibold text-slate-200" title={it.canonicalPath}>
-                    {it.project}
-                  </span>
-                  <span className="shrink-0 text-xs text-slate-400">{formatRelative(it.atMs, now)}</span>
+              <div className="min-w-0">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-bold ui-text" title={item.canonicalPath}>
+                      {item.project}
+                    </h3>
+                    <p className="mt-1 line-clamp-2 text-sm leading-6 ui-text-soft">
+                      {truncate(item.text, 220)}
+                    </p>
+                  </div>
+                  <time className="shrink-0 text-xs ui-muted">
+                    {formatRelative(item.atMs, now)}
+                  </time>
                 </div>
-                <p className="mt-0.5 line-clamp-2 text-sm text-slate-300">{truncate(it.text, 200)}</p>
-                <p className="mt-1 text-[11px] text-slate-400">{SOURCE_LABELS[it.source]}</p>
+                <p className="mt-2 text-[11px] ui-faint">{SOURCE_LABELS[item.source]}</p>
               </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

@@ -1,91 +1,187 @@
+import { pathKey } from "@ai-dashboard/core";
 import { useState } from "react";
-import { ErrorBanner } from "./components/ErrorBanner";
 import { ArchiveDrawer } from "./components/ArchiveDrawer";
-import { FilterBar } from "./components/FilterBar";
-import { useAutoRefresh, useFilter, useProjects, useRefresh, useSettings } from "./hooks";
-import { filterProjects } from "./filter";
+import { ErrorBanner } from "./components/ErrorBanner";
+import { Icon, type IconName } from "./components/Icons";
+import { ProjectDetailsDrawer } from "./components/ProjectDetailsDrawer";
+import { ThemeToggle } from "./components/ThemeToggle";
+import {
+  useAutoRefresh,
+  useProjects,
+  useRefresh,
+  useSettings,
+  useSynthesizeAll,
+} from "./hooks";
 import { formatRelative } from "./lib";
 import { ActivityView } from "./views/ActivityView";
-import { KanbanView } from "./views/KanbanView";
+import { ProjectsView } from "./views/ProjectsView";
 import { SettingsView } from "./views/SettingsView";
-import { TriageView } from "./views/TriageView";
+import { TodayView } from "./views/TodayView";
 
-type Tab = "triage" | "kanban" | "activity" | "settings";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "triage", label: "🌅 晨间分流" },
-  { id: "kanban", label: "📋 阶段看板" },
-  { id: "activity", label: "📊 活动" },
-  { id: "settings", label: "⚙ 设置" },
+type Tab = "today" | "projects" | "activity" | "settings";
+
+const TABS: { id: Tab; label: string; icon: IconName }[] = [
+  { id: "today", label: "今日", icon: "today" },
+  { id: "projects", label: "项目", icon: "projects" },
+  { id: "activity", label: "动态", icon: "activity" },
+  { id: "settings", label: "设置", icon: "settings" },
 ];
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("triage");
+  const [tab, setTab] = useState<Tab>("today");
   const [showArchive, setShowArchive] = useState(false);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const projects = useProjects();
   const refresh = useRefresh();
+  const synthesizeAll = useSynthesizeAll();
   const settings = useSettings();
-  const [filter, setFilter] = useFilter();
   useAutoRefresh(settings.data?.autoRefreshMins);
+
   const now = Date.now();
   const list = projects.data?.projects ?? [];
-  const filtered = filterProjects(list, filter, now);
+  const selectedProject = selectedPath
+    ? list.find((project) => pathKey(project.canonicalPath) === pathKey(selectedPath))
+    : undefined;
+  const synthesizeAllMessage = synthesizeAll.isError
+    ? "总结全部失败，请检查模型设置"
+    : synthesizeAll.data
+      ? `更新 ${synthesizeAll.data.fresh} · 缓存 ${synthesizeAll.data.cached} · 失败 ${synthesizeAll.data.failed}`
+      : null;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-5">
-      <header className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-balance text-lg font-bold text-slate-100">AI Developer Dashboard</h1>
-          <p className="text-xs text-slate-400">
-            {projects.isLoading
-              ? "加载中…"
-              : `${list.length} 个项目 · 更新于 ${formatRelative(projects.data?.generatedAtMs, now)}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowArchive(true)}
-            className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700"
-          >
-            📦 归档
-          </button>
-          <button
-            onClick={() => refresh.mutate()}
-            disabled={refresh.isPending}
-            className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-50"
-          >
-            {refresh.isPending ? "刷新中…" : "🔄 刷新"}
-          </button>
+    <div className="min-h-screen">
+      <header
+        className="sticky top-0 z-40 border-b backdrop-blur-xl ui-divider"
+        style={{ background: "color-mix(in srgb, var(--page) 88%, transparent)" }}
+      >
+        <div className="mx-auto max-w-[1480px] px-4 sm:px-6">
+          <div className="flex min-h-[74px] items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] ui-accent">
+                Local project intelligence
+              </p>
+              <div className="mt-1 flex items-baseline gap-3">
+                <h1 className="truncate text-xl font-bold tracking-[-0.035em] ui-text">
+                  AI 工作台
+                </h1>
+                <span className="hidden text-xs ui-muted sm:inline">
+                  {projects.isLoading
+                    ? "正在读取项目…"
+                    : `${list.length} 个项目 · ${formatRelative(projects.data?.generatedAtMs, now)}更新`}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end gap-1.5">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => synthesizeAll.mutate()}
+                  disabled={synthesizeAll.isPending || projects.isLoading || list.length === 0}
+                  className="ui-button"
+                  title="依次总结所有未归档项目"
+                >
+                  <Icon
+                    name="spark"
+                    size={15}
+                    className={synthesizeAll.isPending ? "animate-pulse" : ""}
+                  />
+                  <span className="hidden sm:inline">
+                    {synthesizeAll.isPending ? "总结中…" : "总结全部"}
+                  </span>
+                </button>
+                <ThemeToggle />
+                <button
+                  type="button"
+                  onClick={() => refresh.mutate()}
+                  disabled={refresh.isPending}
+                  className="ui-button"
+                >
+                  <Icon
+                    name="refresh"
+                    size={15}
+                    className={refresh.isPending ? "animate-spin" : ""}
+                  />
+                  <span className="hidden sm:inline">
+                    {refresh.isPending ? "刷新中…" : "刷新"}
+                  </span>
+                </button>
+              </div>
+              {synthesizeAllMessage && (
+                <p
+                  className={`text-[11px] ${
+                    synthesizeAll.isError || (synthesizeAll.data?.failed ?? 0) > 0
+                      ? "ui-warning"
+                      : "ui-success"
+                  }`}
+                  aria-live="polite"
+                >
+                  {synthesizeAllMessage}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <nav className="flex items-center gap-1 overflow-x-auto" aria-label="主导航">
+            {TABS.map((item) => {
+              const active = tab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setTab(item.id)}
+                  className="relative inline-flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-semibold transition"
+                  style={{ color: active ? "var(--text)" : "var(--muted)" }}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <Icon name={item.icon} size={15} />
+                  {item.label}
+                  {active && (
+                    <span
+                      className="absolute inset-x-3 bottom-0 h-0.5 rounded-full"
+                      style={{ background: "var(--accent)" }}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
       </header>
 
-      <nav className="mb-5 flex gap-1 border-b border-slate-800">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={
-              "-mb-px border-b-2 px-3 py-2 text-sm " +
-              (tab === t.id
-                ? "border-sky-500 text-slate-100"
-                : "border-transparent text-slate-400 hover:text-slate-200")
-            }
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <main className="mx-auto max-w-[1480px] px-4 py-7 sm:px-6 sm:py-9">
+        {projects.isError && (
+          <ErrorBanner error={projects.error} onRetry={() => projects.refetch()} />
+        )}
 
-      {projects.isError && (
-        <ErrorBanner error={projects.error} onRetry={() => projects.refetch()} />
+        {tab === "today" && (
+          <TodayView
+            projects={list}
+            loading={projects.isLoading}
+            onOpenProject={(project) => setSelectedPath(project.canonicalPath)}
+            onViewProjects={() => setTab("projects")}
+          />
+        )}
+        {tab === "projects" &&
+          (projects.isLoading ? (
+            <p className="py-16 text-center text-sm ui-muted">正在读取项目…</p>
+          ) : (
+            <ProjectsView
+              projects={list}
+              onOpenProject={(project) => setSelectedPath(project.canonicalPath)}
+              onOpenArchive={() => setShowArchive(true)}
+            />
+          ))}
+        {tab === "activity" && <ActivityView />}
+        {tab === "settings" && <SettingsView />}
+      </main>
+
+      {selectedProject && (
+        <ProjectDetailsDrawer
+          project={selectedProject}
+          onClose={() => setSelectedPath(null)}
+        />
       )}
-
-      {(tab === "triage" || tab === "kanban") && <FilterBar filter={filter} onChange={setFilter} />}
-
-      {tab === "triage" && <TriageView projects={filtered} />}
-      {tab === "kanban" && <KanbanView projects={filtered} />}
-      {tab === "activity" && <ActivityView />}
-      {tab === "settings" && <SettingsView />}
-
       {showArchive && <ArchiveDrawer onClose={() => setShowArchive(false)} />}
     </div>
   );

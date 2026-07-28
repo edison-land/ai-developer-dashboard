@@ -1,7 +1,16 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
-import { DEFAULT_SETTINGS, type ProviderId, type Settings, type Stage, type Store, type SynthCacheEntry, type SynthResult } from "./domain.js";
+import {
+  DEFAULT_SETTINGS,
+  type FocusPreferences,
+  type ProviderId,
+  type Settings,
+  type Stage,
+  type Store,
+  type SynthCacheEntry,
+  type SynthResult,
+} from "./domain.js";
 import { pathKey } from "./paths.js";
 
 // Loaded via createRequire so bundlers/transformers (Vite, vitest) never see a
@@ -30,9 +39,23 @@ const MIGRATIONS = [
      canonical_path TEXT PRIMARY KEY,
      archived_at_ms INTEGER NOT NULL
    )`,
+  `CREATE TABLE IF NOT EXISTS focus_preferences (
+     canonical_path TEXT PRIMARY KEY,
+     pinned_rank    INTEGER CHECK (pinned_rank IN (0, 1, 2)),
+     dismissed_on  TEXT,
+     updated_at_ms INTEGER NOT NULL
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS focus_preferences_unique_rank
+     ON focus_preferences(pinned_rank)
+     WHERE pinned_rank IS NOT NULL`,
 ];
 
-const SETTING_KEYS = ["provider", "model", "auto_refresh_mins", "synth_on_refresh"] as const;
+const SETTING_FIELDS = [
+  ["provider", "provider"],
+  ["model", "model"],
+  ["autoRefreshMins", "auto_refresh_mins"],
+  ["synthOnRefresh", "synth_on_refresh"],
+] as const;
 
 /**
  * Local persistence for synthesis cache, manual stage overrides, and settings
@@ -41,7 +64,7 @@ const SETTING_KEYS = ["provider", "model", "auto_refresh_mins", "synth_on_refres
  * project surfacing with different case still hits the same row.
  */
 export class SqliteStore implements Store {
-  private db: DatabaseSync;
+  private db: InstanceType<typeof DatabaseSync>;
   private stmts;
 
   constructor(dbPath: string) {
@@ -79,6 +102,16 @@ export class SqliteStore implements Store {
       deleteArchive: this.db.prepare("DELETE FROM archives WHERE canonical_path = ?"),
       allArchives: this.db.prepare("SELECT canonical_path, archived_at_ms FROM archives"),
       allSynth: this.db.prepare("SELECT canonical_path, result_json, input_hash FROM synth_cache"),
+      allFocus: this.db.prepare(
+        "SELECT canonical_path, pinned_rank, dismissed_on FROM focus_preferences",
+      ),
+      deleteAllFocus: this.db.prepare("DELETE FROM focus_preferences"),
+      insertFocus: this.db.prepare(
+        `INSERT INTO focus_preferences
+           (canonical_path, pinned_rank, dismissed_on, updated_at_ms)
+         VALUES (?, ?, ?, ?)`,
+      ),
+      deleteFocus: this.db.prepare("DELETE FROM focus_preferences WHERE canonical_path = ?"),
       getSetting: this.db.prepare("SELECT value FROM settings WHERE key = ?"),
       upsertSetting: this.db.prepare(
         `INSERT INTO settings (key, value) VALUES (?, ?)
@@ -125,7 +158,16 @@ export class SqliteStore implements Store {
   }
 
   archive(canonicalPath: string, atMs: number): void {
-    this.stmts.upsertArchive.run(pathKey(canonicalPath), atMs);
+    const key = pathKey(canonicalPath);
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.stmts.deleteFocus.run(key);
+      this.stmts.upsertArchive.run(key, atMs);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   unarchive(canonicalPath: string): void {
@@ -156,6 +198,78 @@ export class SqliteStore implements Store {
     );
   }
 
+  getFocusPreferences(localDate: string): FocusPreferences {
+    const rows = this.stmts.allFocus.all() as {
+      canonical_path: string;
+      pinned_rank: number | null;
+      dismissed_on: string | null;
+    }[];
+    const pinnedPaths = rows
+      .filter((row) => row.pinned_rank !== null)
+      .sort((a, b) => (a.pinned_rank ?? 0) - (b.pinned_rank ?? 0))
+      .map((row) => row.canonical_path);
+    const dismissedPaths = rows
+      .filter((row) => row.dismissed_on === localDate)
+      .map((row) => row.canonical_path)
+      .sort();
+    return { pinnedPaths, dismissedPaths, localDate };
+  }
+
+  setFocusPreferences(preferences: FocusPreferences): void {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(preferences.localDate)) {
+      throw new Error("focus localDate must be YYYY-MM-DD");
+    }
+    const pinnedPaths = preferences.pinnedPaths.map(pathKey);
+    const dismissedPaths = preferences.dismissedPaths.map(pathKey);
+    if (pinnedPaths.length > 3) throw new Error("focus supports at most three pinned paths");
+    if (new Set(pinnedPaths).size !== pinnedPaths.length) {
+      throw new Error("focus pinned paths must be unique");
+    }
+    if (new Set(dismissedPaths).size !== dismissedPaths.length) {
+      throw new Error("focus dismissed paths must be unique");
+    }
+    const dismissed = new Set(dismissedPaths);
+    if (pinnedPaths.some((canonicalPath) => dismissed.has(canonicalPath))) {
+      throw new Error("a focus path cannot be both pinned and dismissed");
+    }
+
+    const entries = new Map<
+      string,
+      { pinnedRank: number | null; dismissedOn: string | null }
+    >();
+    pinnedPaths.forEach((canonicalPath, index) => {
+      entries.set(canonicalPath, { pinnedRank: index, dismissedOn: null });
+    });
+    dismissedPaths.forEach((canonicalPath) => {
+      entries.set(canonicalPath, {
+        pinnedRank: null,
+        dismissedOn: preferences.localDate,
+      });
+    });
+
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.stmts.deleteAllFocus.run();
+      const now = Date.now();
+      for (const [canonicalPath, entry] of entries) {
+        this.stmts.insertFocus.run(
+          canonicalPath,
+          entry.pinnedRank,
+          entry.dismissedOn,
+          now,
+        );
+      }
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  clearFocusPreference(canonicalPath: string): void {
+    this.stmts.deleteFocus.run(pathKey(canonicalPath));
+  }
+
   getSettings(): Settings {
     const rows = this.stmts.allSettings.all() as { key: string; value: string }[];
     const map = new Map(rows.map((r) => [r.key, r.value]));
@@ -171,9 +285,11 @@ export class SqliteStore implements Store {
   }
 
   setSettings(patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string; zhipuApiKey?: string }): void {
-    for (const k of SETTING_KEYS) {
-      const v = patch[k];
-      if (v !== undefined) this.stmts.upsertSetting.run(k, String(v));
+    for (const [field, storageKey] of SETTING_FIELDS) {
+      const value = patch[field];
+      if (value === undefined) continue;
+      const stored = field === "synthOnRefresh" ? (value ? "1" : "0") : String(value);
+      this.stmts.upsertSetting.run(storageKey, stored);
     }
     if (patch.anthropicApiKey !== undefined) {
       this.stmts.upsertSetting.run("anthropic_api_key", patch.anthropicApiKey);

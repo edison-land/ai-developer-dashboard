@@ -23,8 +23,8 @@ function runGit(cwd: string, args: string[]): Promise<GitResult> {
       (err, stdout, stderr) => {
         resolve({
           ok: !err,
-          stdout: stdout ? stdout.toString("utf8") : "",
-          stderr: stderr ? stderr.toString("utf8") : "",
+          stdout: stdout || "",
+          stderr: stderr || "",
         });
       },
     );

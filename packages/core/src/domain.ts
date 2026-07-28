@@ -77,6 +77,8 @@ export interface StatusSnapshot {
 // ── Synthesis ──────────────────────────────────────────────────────────────
 /** Which AI provider backs synthesis. Zhipu is the default (OpenAI-compatible BigModel API). */
 export type ProviderId = "zhipu" | "anthropic" | "openai";
+export const ATTENTION_KIND = ["user-action", "waiting", "none", "unknown"] as const;
+export type AttentionKind = (typeof ATTENTION_KIND)[number];
 
 export interface TokenUsage {
   input: number;
@@ -88,6 +90,10 @@ export interface SynthResult {
   summary: string; // 1-2 sentences
   nextStep: string; // 1 sentence
   blockers: string[]; // 0-N
+  /** Whether a blocker needs the user's action now, is merely waiting on an
+   * external condition, or is absent. Optional so older cache rows remain
+   * readable; consumers treat a missing value as "unknown". */
+  attention?: AttentionKind;
   model: string;
   provider: ProviderId;
   generatedAtMs: number;
@@ -120,6 +126,25 @@ export interface UnifiedProject {
    *  burst of activity does NOT clear it — only an explicit restore does. */
   archivedAtMs?: number;
   signalsBySource: Partial<Record<SourceId, RawSignals>>;
+}
+
+// ── Today's focus ──────────────────────────────────────────────────────────
+export const FOCUS_REASON = ["pinned", "running", "needs-action", "recent"] as const;
+export type FocusReason = (typeof FOCUS_REASON)[number];
+
+export interface FocusPreferences {
+  /** Ordered, user-pinned canonical paths. At most three are persisted. */
+  pinnedPaths: string[];
+  /** Canonical paths dismissed from automatic suggestions for `localDate`. */
+  dismissedPaths: string[];
+  /** Local calendar date in YYYY-MM-DD form. */
+  localDate: string;
+}
+
+export interface FocusSelection {
+  project: UnifiedProject;
+  reason: FocusReason;
+  pinned: boolean;
 }
 
 // ── Activity feed ──────────────────────────────────────────────────────────
@@ -173,6 +198,12 @@ export interface Store {
   allArchived(): Map<string, number>;
   /** All cached synth results, keyed by pathKey. */
   allSynth(): Map<string, SynthCacheEntry>;
+  /** Ordered focus pins + dismissals for a local calendar date. */
+  getFocusPreferences(localDate: string): FocusPreferences;
+  /** Replace the complete focus preference state atomically. */
+  setFocusPreferences(preferences: FocusPreferences): void;
+  /** Remove one project's pin/dismiss state (used when archiving/completing). */
+  clearFocusPreference(canonicalPath: string): void;
   getSettings(): Settings;
   /** Patch settings. Key values are stored internally; never returned raw by the API. */
   setSettings(patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string; zhipuApiKey?: string }): void;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Stage } from "@ai-dashboard/core";
+import type { FocusPreferences, Stage } from "@ai-dashboard/core";
 import { api } from "./api";
 import { DEFAULT_FILTER, type ProjectFilter } from "./filter";
 
@@ -30,6 +30,7 @@ export function useArchive() {
       qc.invalidateQueries({ queryKey: ["projects"] });
       qc.invalidateQueries({ queryKey: ["archived"] });
       qc.invalidateQueries({ queryKey: ["activity"] });
+      qc.invalidateQueries({ queryKey: ["focus-preferences"] });
     },
   });
 }
@@ -104,6 +105,19 @@ export function useSynthesize() {
   });
 }
 
+/** Cache-aware sequential synthesis for every unarchived project. */
+export function useSynthesizeAll() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.synthesizeAll,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      qc.invalidateQueries({ queryKey: ["activity"] });
+      qc.invalidateQueries({ queryKey: ["health"] });
+    },
+  });
+}
+
 export function useSettings() {
   return useQuery({ queryKey: ["settings"], queryFn: api.getSettings });
 }
@@ -113,6 +127,34 @@ export function useSaveSettings() {
   return useMutation({
     mutationFn: api.putSettings,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  });
+}
+
+export function useFocusPreferences(localDate: string) {
+  return useQuery({
+    queryKey: ["focus-preferences", localDate],
+    queryFn: () => api.focusPreferences(localDate),
+    staleTime: 60_000,
+  });
+}
+
+export function useSaveFocusPreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.putFocusPreferences,
+    onMutate: async (next: FocusPreferences) => {
+      const queryKey = ["focus-preferences", next.localDate] as const;
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueryData<FocusPreferences>(queryKey);
+      qc.setQueryData(queryKey, next);
+      return { previous, queryKey };
+    },
+    onError: (_error, _next, context) => {
+      if (context?.previous) qc.setQueryData(context.queryKey, context.previous);
+    },
+    onSettled: (_data, _error, next) => {
+      qc.invalidateQueries({ queryKey: ["focus-preferences", next.localDate] });
+    },
   });
 }
 

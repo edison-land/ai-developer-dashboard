@@ -11,6 +11,7 @@
     "dev": "pnpm --filter @ai-dashboard/cli dev",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
+    "verify:ui-redesign": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-ui-redesign.ps1",
     "smoke:synth": "tsx scripts/smoke-synth.ts"
   },
   "engines": {

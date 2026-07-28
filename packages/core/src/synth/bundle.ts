@@ -35,10 +35,11 @@ export const SYNTH_SYSTEM_PROMPT = [
   "3. nextStep 必须具体、可执行、紧扣当前实际工作（例如「实现 X 的 Y 部分」「修复 Z 报错」「给 W 补单测」「验证 V 能跑通」）。禁止泛泛的「继续开发 / 完善 / 推进 / 提交」。",
   "4. summary 要说清【这个项目在做什么、推进到哪一步】，而不是罗列有多少个未提交文件。",
   "5. blockers 只填真正的阻塞（缺依赖、环境/权限问题、等外部、关键设计未定、被别处卡住）；没有就给空数组 []。",
+  "6. attention 判断阻塞是否需要用户现在处理：user-action=用户现在能采取动作；waiting=只能等待外部条件；none=无阻塞；无法判断才用 unknown。",
   "",
   "stage 只能是这五个之一：idea（想法）/ building（开发中）/ verifying（待验证）/ done（完成）/ stalled（搁置）。",
   '只输出一个 JSON 对象，不要任何额外文字、不要 markdown 代码块：',
-  '{"stage": string, "summary": string, "nextStep": string, "blockers": string[]}',
+  '{"stage": string, "summary": string, "nextStep": string, "blockers": string[], "attention": "user-action" | "waiting" | "none" | "unknown"}',
   "（summary≤280字、1-2 句；nextStep≤200字、一句具体动作；blockers 0-5 条、每条简短）",
 ].join("\n");
 

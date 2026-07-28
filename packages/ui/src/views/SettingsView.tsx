@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { ProviderId } from "@ai-dashboard/core";
+import { Icon } from "../components/Icons";
 import { useSaveSettings, useSettings } from "../hooks";
+import { useTheme, type ThemePreference } from "../theme";
 
 export function SettingsView() {
   const { data } = useSettings();
   const save = useSaveSettings();
+  const { preference, setPreference } = useTheme();
 
   const [provider, setProvider] = useState<ProviderId>("zhipu");
   const [model, setModel] = useState("");
@@ -22,14 +25,11 @@ export function SettingsView() {
     setSynthOnRefresh(data.synthOnRefresh);
   }, [data]);
 
-  // Clear API key fields after a successful save so the "leave empty to keep" state
-  // is restored and the beforeunload guard doesn't false-positive.
   useEffect(() => {
-    if (save.data) {
-      setZhipuKey("");
-      setAnthropicKey("");
-      setOpenaiKey("");
-    }
+    if (!save.data) return;
+    setZhipuKey("");
+    setAnthropicKey("");
+    setOpenaiKey("");
   }, [save.data]);
 
   const dirty =
@@ -44,9 +44,9 @@ export function SettingsView() {
 
   useEffect(() => {
     if (!dirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
@@ -65,118 +65,265 @@ export function SettingsView() {
   };
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 rounded-xl border border-slate-800 bg-slate-900 p-5">
-      <h2 className="text-base font-semibold text-slate-100">设置</h2>
-      <Field label="AI 总结的模型提供商">
-        <select
-          value={provider}
-          onChange={(e) => setProvider(e.target.value as ProviderId)}
-          className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
-        >
-          <option value="zhipu">智谱 Zhipu GLM（OpenAI 兼容，默认）</option>
-          <option value="anthropic">Anthropic (Claude，暂未接入)</option>
-          <option value="openai">OpenAI (GPT，暂未接入)</option>
-        </select>
-      </Field>
-
-      <Field label="模型（智谱默认 glm-4-flash-250414，免费、非推理；勿用 glm-4.7-flash 等推理模型）">
-        <input
-          name="model"
-          autoComplete="off"
-          spellCheck={false}
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          placeholder="glm-4-flash-250414"
-          className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
-        />
-      </Field>
-
-      <Field label={`智谱 BigModel API Key${data?.hasZhipuKey ? "（已设置，留空则不修改）" : "（在 open.bigmodel.cn 生成，免费 flash 模型）"}`}>
-        <input
-          type="password"
-          name="zhipuApiKey"
-          autoComplete="off"
-          spellCheck={false}
-          value={zhipuKey}
-          onChange={(e) => setZhipuKey(e.target.value)}
-          placeholder={data?.hasZhipuKey ? "••••••••" : "xxxxxxxx.xxxxxxxx"}
-          className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
-        />
-      </Field>
-
-      <Field label={`Anthropic API Key${data?.hasAnthropicKey ? "（已设置，留空则不修改）" : ""}`}>
-        <input
-          type="password"
-          name="anthropicApiKey"
-          autoComplete="off"
-          spellCheck={false}
-          value={anthropicKey}
-          onChange={(e) => setAnthropicKey(e.target.value)}
-          placeholder={data?.hasAnthropicKey ? "••••••••" : "sk-ant-…"}
-          className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
-        />
-      </Field>
-
-      <Field label={`OpenAI API Key${data?.hasOpenAIKey ? "（已设置，留空则不修改）" : ""}`}>
-        <input
-          type="password"
-          name="openaiApiKey"
-          autoComplete="off"
-          spellCheck={false}
-          value={openaiKey}
-          onChange={(e) => setOpenaiKey(e.target.value)}
-          placeholder={data?.hasOpenAIKey ? "••••••••" : "sk-…"}
-          className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
-        />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="自动刷新（分钟，0=关）">
-          <input
-            type="number"
-            name="autoRefreshMins"
-            autoComplete="off"
-            inputMode="numeric"
-            min={0}
-            value={autoRefreshMins}
-            onChange={(e) => setAutoRefreshMins(Number(e.target.value) || 0)}
-            className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
-          />
-        </Field>
-        <label className="flex items-end gap-2 pb-1.5 text-sm text-slate-300">
-          <input
-            type="checkbox"
-            checked={synthOnRefresh}
-            onChange={(e) => setSynthOnRefresh(e.target.checked)}
-          />
-          刷新时一并总结
-        </label>
+    <div className="page-rise mx-auto max-w-4xl space-y-6">
+      <div>
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] ui-accent">
+          Preferences
+        </p>
+        <h2 className="mt-1 text-2xl font-bold tracking-[-0.035em] ui-text">设置</h2>
+        <p className="mt-1 text-sm ui-muted">
+          控制总结模型、自动刷新与界面外观。所有设置只保存在本机。
+        </p>
       </div>
 
-      <div className="flex items-center gap-3 pt-2" aria-live="polite">
+      <SettingsSection
+        eyebrow="AI summary"
+        title="AI 总结"
+        description="只在你主动生成或允许刷新总结时调用模型。"
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="模型提供商">
+            <select
+              value={provider}
+              onChange={(event) => setProvider(event.target.value as ProviderId)}
+              className="ui-input"
+            >
+              <option value="zhipu">智谱 Zhipu GLM（默认）</option>
+              <option value="anthropic">Anthropic Claude（暂未接入）</option>
+              <option value="openai">OpenAI GPT（暂未接入）</option>
+            </select>
+          </Field>
+          <Field label="模型">
+            <input
+              name="model"
+              autoComplete="off"
+              spellCheck={false}
+              value={model}
+              onChange={(event) => setModel(event.target.value)}
+              placeholder="glm-4-flash-250414"
+              className="ui-input"
+            />
+          </Field>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <SecretField
+            label="智谱 API Key"
+            name="zhipuApiKey"
+            value={zhipuKey}
+            onChange={setZhipuKey}
+            configured={data?.hasZhipuKey}
+            emptyPlaceholder="xxxxxxxx.xxxxxxxx"
+          />
+          <SecretField
+            label="Anthropic API Key"
+            name="anthropicApiKey"
+            value={anthropicKey}
+            onChange={setAnthropicKey}
+            configured={data?.hasAnthropicKey}
+            emptyPlaceholder="sk-ant-…"
+          />
+          <SecretField
+            label="OpenAI API Key"
+            name="openaiApiKey"
+            value={openaiKey}
+            onChange={setOpenaiKey}
+            configured={data?.hasOpenAIKey}
+            emptyPlaceholder="sk-…"
+          />
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        eyebrow="Refresh"
+        title="自动刷新"
+        description="机械状态刷新免费；自动总结可能产生模型调用。"
+      >
+        <div className="grid items-end gap-5 md:grid-cols-2">
+          <Field label="刷新间隔（分钟，0 表示关闭）">
+            <input
+              type="number"
+              name="autoRefreshMins"
+              autoComplete="off"
+              inputMode="numeric"
+              min={0}
+              value={autoRefreshMins}
+              onChange={(event) => setAutoRefreshMins(Number(event.target.value) || 0)}
+              className="ui-input"
+            />
+          </Field>
+          <label
+            className="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm ui-text-soft ui-divider"
+            style={{ background: "var(--surface-soft)" }}
+          >
+            <input
+              type="checkbox"
+              checked={synthOnRefresh}
+              onChange={(event) => setSynthOnRefresh(event.target.checked)}
+              style={{ accentColor: "var(--accent)" }}
+            />
+            刷新时一并更新 AI 总结
+          </label>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        eyebrow="Appearance"
+        title="界面外观"
+        description="暖白与深墨使用同一套信息层级，只替换颜色。"
+      >
+        <div className="grid gap-3 sm:grid-cols-3">
+          <ThemeOption
+            value="system"
+            current={preference}
+            icon="settings"
+            title="跟随 Windows"
+            description="随系统明暗设置变化"
+            onSelect={setPreference}
+          />
+          <ThemeOption
+            value="light"
+            current={preference}
+            icon="sun"
+            title="暖白编辑台"
+            description="明亮、安静、适合阅读"
+            onSelect={setPreference}
+          />
+          <ThemeOption
+            value="dark"
+            current={preference}
+            icon="moon"
+            title="深墨专注台"
+            description="低眩光、适合夜间工作"
+            onSelect={setPreference}
+          />
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        eyebrow="Local first"
+        title="本地数据"
+        description="项目状态、偏好和密钥都保存在当前电脑。"
+      >
+        <div className="flex items-start gap-3 rounded-xl p-4 text-sm leading-6 ui-text-soft" style={{ background: "var(--surface-soft)" }}>
+          <Icon name="check" size={17} className="mt-0.5 shrink-0 ui-success" />
+          <p>
+            数据目录为 <code className="font-mono text-xs ui-text">~/.ai-dashboard/</code>。
+            API Key 不会通过接口回显，网页也不会把会话内容上传到看板服务之外。
+          </p>
+        </div>
+      </SettingsSection>
+
+      <div className="sticky bottom-4 flex items-center gap-3 rounded-2xl border p-3 shadow-xl ui-divider" style={{ background: "color-mix(in srgb, var(--surface) 94%, transparent)", backdropFilter: "blur(14px)" }} aria-live="polite">
         <button
+          type="button"
           onClick={onSave}
-          disabled={save.isPending}
-          className="rounded-lg bg-sky-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
+          disabled={save.isPending || !dirty}
+          className="ui-button ui-button-primary"
         >
-          {save.isPending ? "保存中…" : "保存"}
+          <Icon name="check" size={15} />
+          {save.isPending ? "保存中…" : dirty ? "保存设置" : "设置已保存"}
         </button>
-        {save.isSuccess && <span className="text-xs text-emerald-400">已保存</span>}
-        {save.isError && <span className="text-xs text-rose-400">保存失败</span>}
+        {save.isSuccess && <span className="text-xs ui-success">保存成功</span>}
+        {save.isError && <span className="text-xs ui-danger">保存失败，请重试</span>}
       </div>
-
-      <p className="text-xs text-slate-600">
-        所有数据保存在本机（<code className="text-slate-500">~/.ai-dashboard/</code>），API Key 仅用于按需总结，不会被任何接口回显。
-      </p>
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function SettingsSection({
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="ui-panel p-5 sm:p-6">
+      <p className="text-[10px] font-bold uppercase tracking-[0.18em] ui-faint">{eyebrow}</p>
+      <h3 className="mt-1 text-lg font-bold ui-text">{title}</h3>
+      <p className="mt-1 text-sm ui-muted">{description}</p>
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs text-slate-400">{label}</span>
+      <span className="mb-1.5 block text-xs font-semibold ui-muted">{label}</span>
       {children}
     </label>
+  );
+}
+
+function SecretField({
+  label,
+  name,
+  value,
+  onChange,
+  configured,
+  emptyPlaceholder,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  configured?: boolean;
+  emptyPlaceholder: string;
+}) {
+  return (
+    <Field label={`${label}${configured ? "（已设置）" : ""}`}>
+      <input
+        type="password"
+        name={name}
+        autoComplete="off"
+        spellCheck={false}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={configured ? "留空则不修改" : emptyPlaceholder}
+        className="ui-input"
+      />
+    </Field>
+  );
+}
+
+function ThemeOption({
+  value,
+  current,
+  icon,
+  title,
+  description,
+  onSelect,
+}: {
+  value: ThemePreference;
+  current: ThemePreference;
+  icon: "settings" | "sun" | "moon";
+  title: string;
+  description: string;
+  onSelect: (preference: ThemePreference) => void;
+}) {
+  const active = value === current;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(value)}
+      className="rounded-xl border p-4 text-left transition hover:-translate-y-0.5 ui-divider"
+      style={{
+        borderColor: active ? "var(--accent)" : "var(--border)",
+        background: active ? "var(--accent-soft)" : "var(--surface-elevated)",
+      }}
+      aria-pressed={active}
+    >
+      <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full ${active ? "ui-accent" : "ui-muted"}`} style={{ background: "var(--surface-soft)" }}>
+        <Icon name={icon} size={17} />
+      </span>
+      <span className="mt-3 block text-sm font-bold ui-text">{title}</span>
+      <span className="mt-1 block text-xs leading-5 ui-muted">{description}</span>
+    </button>
   );
 }

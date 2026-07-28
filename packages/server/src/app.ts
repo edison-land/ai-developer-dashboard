@@ -41,6 +41,18 @@ const MIME: Record<string, string> = {
   ".map": "application/json",
 };
 
+function isLocalDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return false;
+  const parsed = new Date(year, month - 1, day);
+  return (
+    parsed.getFullYear() === year &&
+    parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day
+  );
+}
+
 /** Minimal, dependency-free static + SPA-fallback handler for the built UI. */
 function uiHandler(uiDir: string) {
   return async (c: Context): Promise<Response> => {
@@ -150,8 +162,7 @@ export function createApp(deps: ServerDeps): Hono {
 
   api.post("/synthesize-all", async (c) => {
     await ensureLoaded();
-    const includeStale = c.req.query("includeStale") === "true";
-    const targets = state.projects.filter((p) => includeStale || p.recencyBucket !== "stale");
+    const targets = state.projects.filter((project) => !project.archivedAtMs);
     let cached = 0;
     let fresh = 0;
     let failed = 0;
@@ -163,6 +174,58 @@ export function createApp(deps: ServerDeps): Hono {
     }
     await refresh();
     return c.json({ total: targets.length, cached, fresh, failed, generatedAtMs: state.generatedAtMs });
+  });
+
+  api.get("/focus-preferences", (c) => {
+    const localDate = c.req.query("localDate");
+    if (!isLocalDate(localDate)) {
+      return c.json({ error: "localDate must be a real YYYY-MM-DD date" }, 400);
+    }
+    return c.json(deps.store.getFocusPreferences(localDate));
+  });
+
+  api.put("/focus-preferences", async (c) => {
+    const body = (await c.req.json().catch(() => null)) as
+      | {
+          pinnedPaths?: unknown;
+          dismissedPaths?: unknown;
+          localDate?: unknown;
+        }
+      | null;
+    if (
+      !body ||
+      !isLocalDate(body.localDate) ||
+      !Array.isArray(body.pinnedPaths) ||
+      !body.pinnedPaths.every((value) => typeof value === "string") ||
+      !Array.isArray(body.dismissedPaths) ||
+      !body.dismissedPaths.every((value) => typeof value === "string")
+    ) {
+      return c.json(
+        {
+          error:
+            "body must contain pinnedPaths/dismissedPaths string arrays and a real localDate",
+        },
+        400,
+      );
+    }
+    if (body.pinnedPaths.length > 3) {
+      return c.json({ error: "pinnedPaths supports at most three projects" }, 400);
+    }
+    const pinned = body.pinnedPaths.map(pathKey);
+    const dismissed = body.dismissedPaths.map(pathKey);
+    if (new Set(pinned).size !== pinned.length || new Set(dismissed).size !== dismissed.length) {
+      return c.json({ error: "focus paths must be unique" }, 400);
+    }
+    const dismissedSet = new Set(dismissed);
+    if (pinned.some((canonicalPath) => dismissedSet.has(canonicalPath))) {
+      return c.json({ error: "a project cannot be both pinned and dismissed" }, 400);
+    }
+    deps.store.setFocusPreferences({
+      pinnedPaths: body.pinnedPaths,
+      dismissedPaths: body.dismissedPaths,
+      localDate: body.localDate,
+    });
+    return c.json(deps.store.getFocusPreferences(body.localDate));
   });
 
   api.get("/settings", (c) => c.json(deps.store.getSettings()));
