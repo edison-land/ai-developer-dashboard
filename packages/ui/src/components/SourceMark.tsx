@@ -1,10 +1,16 @@
 import { SOURCE_LABELS, type SourceId } from "@ai-dashboard/core";
-import { Icon, type IconName } from "./Icons";
+import claudeCodeLogo from "../assets/source-logos/claude-code.png";
+import codexDarkLogo from "../assets/source-logos/codex-dark.png";
+import codexLightLogo from "../assets/source-logos/codex-light.png";
+import gitLogo from "../assets/source-logos/git.svg";
 
-const SOURCE_ICON: Record<SourceId, IconName> = {
-  "claude-code": "claude",
-  codex: "codex",
-  git: "git",
+const SOURCE_LOGO: Record<
+  SourceId,
+  { light: string; dark?: string }
+> = {
+  "claude-code": { light: claudeCodeLogo },
+  codex: { light: codexLightLogo, dark: codexDarkLogo },
+  git: { light: gitLogo },
 };
 
 export function SourceMark({
@@ -18,6 +24,9 @@ export function SourceMark({
   compact?: boolean;
   className?: string;
 }) {
+  const logo = SOURCE_LOGO[source];
+  const logoSize = compact ? "h-[13px] w-[13px]" : "h-[15px] w-[15px]";
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 ${className}`}
@@ -25,12 +34,27 @@ export function SourceMark({
       aria-label={SOURCE_LABELS[source]}
     >
       <span
-        className={`inline-flex items-center justify-center rounded-full ${
+        className={`relative inline-flex shrink-0 items-center justify-center rounded-full ${
           compact ? "h-5 w-5" : "h-6 w-6"
         }`}
         style={{ background: "var(--surface-soft)" }}
       >
-        <Icon name={SOURCE_ICON[source]} size={compact ? 11 : 13} />
+        <img
+          src={logo.light}
+          alt=""
+          draggable={false}
+          className={`${logoSize} object-contain ${
+            logo.dark ? "source-logo-light" : ""
+          }`}
+        />
+        {logo.dark && (
+          <img
+            src={logo.dark}
+            alt=""
+            draggable={false}
+            className={`source-logo-dark absolute ${logoSize} object-contain`}
+          />
+        )}
       </span>
       {showLabel && <span className="text-xs">{SOURCE_LABELS[source]}</span>}
     </span>

@@ -83,6 +83,22 @@ describe("mergeByCanonicalPath", () => {
     expect(out[0]!.liveStatus).toBe("none");
   });
 
+  it("uses the git head date when every session source lacks an activity time", () => {
+    const gitByPath = new Map<string, StatusSnapshot>([
+      ["d:/active-repo", git(0)],
+    ]);
+    const out = merge(
+      [
+        { source: "claude-code", canonicalPath: "D:/active-repo" },
+        { source: "codex", canonicalPath: "D:/active-repo" },
+      ],
+      gitByPath,
+    );
+
+    expect(out[0]!.lastActiveMs).toBe(NOW - 5000);
+    expect(out[0]!.recencyBucket).toBe("today");
+  });
+
   it("does not invent a project from git alone", () => {
     const gitByPath = new Map([["d:/orphan", git(0)]]);
     expect(merge([], gitByPath)).toHaveLength(0);

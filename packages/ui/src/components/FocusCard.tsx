@@ -79,7 +79,7 @@ export function FocusCard({
         onClick={onOpen}
         disabled={editing}
         className="flex flex-1 flex-col text-left disabled:cursor-default"
-        aria-label={`打开 ${project.name} 项目详情`}
+        aria-label={`打开 ${project.name} 项目详情${pinned ? "，已置顶" : ""}`}
       >
         <div className="flex items-start justify-between gap-3">
           <span className="text-xs font-bold tracking-[0.16em] ui-accent">
@@ -92,6 +92,18 @@ export function FocusCard({
               ))}
             </span>
             <span className="ui-chip">{stage}</span>
+            {pinned && (
+              <span
+                className="inline-flex h-6 w-6 items-center justify-center rounded-full ui-accent"
+                style={{
+                  background: "var(--accent-soft)",
+                  boxShadow: "inset 0 0 0 1px var(--accent)",
+                }}
+                title="已置顶"
+              >
+                <Icon name="pin" size={12} className="-rotate-12" />
+              </span>
+            )}
           </span>
         </div>
 

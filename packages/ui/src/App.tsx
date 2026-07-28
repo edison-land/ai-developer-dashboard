@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ArchiveDrawer } from "./components/ArchiveDrawer";
 import { ErrorBanner } from "./components/ErrorBanner";
 import { Icon, type IconName } from "./components/Icons";
-import { ProjectDetailsDrawer } from "./components/ProjectDetailsDrawer";
+import { ProjectDetailsModal } from "./components/ProjectDetailsModal";
 import { ThemeToggle } from "./components/ThemeToggle";
 import {
   useAutoRefresh,
@@ -197,7 +197,7 @@ export default function App() {
       </main>
 
       {selectedProject && (
-        <ProjectDetailsDrawer
+        <ProjectDetailsModal
           project={selectedProject}
           onClose={() => setSelectedPath(null)}
         />

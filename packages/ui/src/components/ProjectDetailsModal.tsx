@@ -16,7 +16,7 @@ import { formatRelative } from "../lib";
 import { Icon } from "./Icons";
 import { SourceMark } from "./SourceMark";
 
-export function ProjectDetailsDrawer({
+export function ProjectDetailsModal({
   project,
   onClose,
 }: {
@@ -58,16 +58,21 @@ export function ProjectDetailsDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={`${project.name} 项目详情`}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="project-detail-title"
+    >
       <button
         type="button"
-        className="absolute inset-0 cursor-default"
+        className="absolute inset-0 z-0 cursor-default"
         style={{ background: "rgba(3, 8, 16, 0.52)" }}
         onClick={onClose}
         aria-label="关闭项目详情"
       />
-      <aside
-        className="page-rise relative flex h-full w-full max-w-[480px] flex-col border-l shadow-2xl ui-divider"
+      <section
+        className="page-rise relative z-10 flex h-full w-full flex-col overflow-hidden border shadow-2xl ui-divider sm:h-auto sm:max-h-[calc(100vh-48px)] sm:max-w-[820px] sm:rounded-2xl"
         style={{ background: "var(--page)" }}
       >
         <header className="border-b px-5 py-4 ui-divider" style={{ background: "var(--surface)" }}>
@@ -76,7 +81,10 @@ export function ProjectDetailsDrawer({
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] ui-accent">
                 Project detail
               </p>
-              <h2 className="mt-1 truncate text-xl font-bold tracking-[-0.025em] ui-text">
+              <h2
+                id="project-detail-title"
+                className="mt-1 truncate text-xl font-bold tracking-[-0.025em] ui-text"
+              >
                 {project.name}
               </h2>
               <p className="mt-1 break-all text-xs leading-5 ui-muted">
@@ -104,7 +112,7 @@ export function ProjectDetailsDrawer({
           </div>
         </header>
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
           <section className="ui-panel p-4">
             <SectionLabel>当前情况</SectionLabel>
             <p className="mt-2 text-sm leading-6 ui-text-soft">
@@ -241,7 +249,7 @@ export function ProjectDetailsDrawer({
             )}
           </section>
         </div>
-      </aside>
+      </section>
     </div>
   );
 }

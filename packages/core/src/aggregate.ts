@@ -107,7 +107,20 @@ export function mergeByCanonicalPath(
 
     const git = gitByPath.get(key);
 
-    const lastActiveMs = signals.reduce((m, s) => (s.lastActiveMs !== undefined ? Math.max(m, s.lastActiveMs) : m), 0);
+    const sessionLastActiveMs = signals.reduce(
+      (m, s) =>
+        s.lastActiveMs !== undefined ? Math.max(m, s.lastActiveMs) : m,
+      0,
+    );
+    const gitHeadDateMs = git?.headCommit?.dateMs;
+    const lastActiveMs =
+      sessionLastActiveMs > 0
+        ? sessionLastActiveMs
+        : gitHeadDateMs !== undefined &&
+            Number.isFinite(gitHeadDateMs) &&
+            gitHeadDateMs > 0
+          ? gitHeadDateMs
+          : 0;
     const liveStatus: UnifiedProject["liveStatus"] = signals.some((s) => s.liveStatus === "busy")
       ? "busy"
       : signals.some((s) => s.liveStatus === "idle")

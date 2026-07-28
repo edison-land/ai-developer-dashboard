@@ -266,7 +266,20 @@ button:disabled {
   animation: page-rise 180ms ease-out both;
 }
 
+.source-logo-dark {
+  display: none;
+}
+
+[data-theme="dark"] .source-logo-light {
+  display: none;
+}
+
+[data-theme="dark"] .source-logo-dark {
+  display: block;
+}
+
 .focus-card-pinned {
+  border-width: 2px;
   border-color: transparent;
   background:
     linear-gradient(var(--surface-elevated), var(--surface-elevated)) padding-box,

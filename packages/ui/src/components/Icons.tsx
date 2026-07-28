@@ -19,9 +19,6 @@ export type IconName =
   | "right"
   | "dismiss"
   | "spark"
-  | "git"
-  | "claude"
-  | "codex"
   | "check"
   | "alert"
   | "clock";
@@ -135,16 +132,6 @@ const paths: Record<IconName, React.ReactNode> = {
     </>
   ),
   spark: <path d="m12 3 1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3Z" />,
-  git: (
-    <>
-      <circle cx="6" cy="5" r="2" />
-      <circle cx="18" cy="7" r="2" />
-      <circle cx="6" cy="19" r="2" />
-      <path d="M6 7v10M8 9c3 0 3-2 8-2" />
-    </>
-  ),
-  claude: <path d="m12 3 1.7 6.2L20 11l-6.3 1.8L12 19l-1.7-6.2L4 11l6.3-1.8L12 3Z" />,
-  codex: <path d="m12 3 7 5v8l-7 5-7-5V8l7-5Zm0 0v18M5 8l7 5 7-5" />,
   check: <path d="m5 12 4 4L19 6" />,
   alert: (
     <>
