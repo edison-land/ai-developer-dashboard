@@ -47,7 +47,7 @@ function describe(err: unknown): ErrorInfo {
 export function ErrorBanner({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const info = describe(error);
   return (
-    <div className="mb-4 rounded-lg border border-rose-900 bg-rose-950/40 p-3 text-sm text-rose-300">
+    <div role="alert" className="mb-4 rounded-lg border border-rose-900 bg-rose-950/40 p-3 text-sm text-rose-300">
       <div className="font-medium">❌ {info.title}</div>
       {info.detail && (
         <div className="mt-1 break-all text-xs text-rose-400/80">详情：{info.detail}</div>

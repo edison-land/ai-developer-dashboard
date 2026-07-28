@@ -33,6 +33,7 @@ export function FilterBar({
           return (
             <button
               key={s}
+              aria-pressed={active}
               onClick={() => onChange(toggleSource(filter, s))}
               className={
                 "rounded-full px-2 py-0.5 transition-colors " +
@@ -55,6 +56,7 @@ export function FilterBar({
           return (
             <button
               key={o.value}
+              aria-pressed={active}
               onClick={() => onChange({ ...filter, recency: o.value as RecencyFilter })}
               className={
                 "rounded-full px-2 py-0.5 transition-colors " +

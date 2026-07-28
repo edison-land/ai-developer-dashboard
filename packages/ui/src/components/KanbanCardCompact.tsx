@@ -20,15 +20,15 @@ export function KanbanCardCompact({ project, now }: { project: UnifiedProject; n
       <div className="mt-0.5 flex items-center gap-1">
         <div className="flex min-w-0 items-center gap-1">
           {project.sources.map((s) => (
-            <span key={s} className="rounded bg-slate-800 px-1 py-px text-[9px] text-slate-400">
+            <span key={s} className="rounded bg-slate-800 px-1 py-px text-[11px] text-slate-400">
               {SOURCE_LABELS[s]}
             </span>
           ))}
         </div>
-        <span className="ml-auto shrink-0 text-[10px] text-slate-600">{formatRelative(project.lastActiveMs, now)}</span>
+        <span className="ml-auto shrink-0 text-[11px] text-slate-400">{formatRelative(project.lastActiveMs, now)}</span>
       </div>
       {project.lastActionOneLiner && (
-        <p className="mt-1 truncate text-[11px] text-slate-400" title={project.lastActionOneLiner}>
+        <p className="mt-1 truncate text-xs text-slate-400" title={project.lastActionOneLiner}>
           {truncate(project.lastActionOneLiner, 48)}
         </p>
       )}

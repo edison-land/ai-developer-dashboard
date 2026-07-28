@@ -49,7 +49,7 @@ export function KanbanView({ projects }: { projects: UnifiedProject[] }) {
               onMouseLeave={() => setHovered((h) => (h === idx ? null : h))}
               className={
                 "relative rounded-xl border p-2 transition-opacity duration-150 " +
-                (isHovered ? "border-sky-600 bg-slate-900/60" : "border-slate-800 bg-slate-900/40 ") +
+                (isHovered ? "border-sky-600 bg-slate-900/80" : "border-slate-700/70 bg-slate-900/50 ") +
                 (dimmed ? "opacity-40" : "opacity-100")
               }
             >
@@ -57,11 +57,11 @@ export function KanbanView({ projects }: { projects: UnifiedProject[] }) {
                   expanded overlay never triggers a layout reflow. */}
               <div className="mb-2 flex items-center justify-between px-1">
                 <h3 className={`text-xs font-semibold ${col.muted ? "text-slate-500" : "text-slate-300"}`}>{col.label}</h3>
-                <span className="text-xs text-slate-600">{items.length}</span>
+                <span className="text-xs text-slate-400">{items.length}</span>
               </div>
               <div className="space-y-2">
                 {items.length === 0 ? (
-                  <p className="px-1 py-4 text-center text-[11px] text-slate-600">空</p>
+                  <p className="px-1 py-4 text-center text-xs text-slate-500">空</p>
                 ) : (
                   items.map((p) => <KanbanCardCompact key={p.canonicalPath} project={p} now={now} />)
                 )}
@@ -72,7 +72,7 @@ export function KanbanView({ projects }: { projects: UnifiedProject[] }) {
               {isHovered && items.length > 0 && (
                 <div
                   style={overlayStyle}
-                  className="absolute top-0 z-30 rounded-xl border border-sky-500 bg-slate-900 p-2 shadow-2xl shadow-black/60"
+                  className="kf-fade-in absolute top-0 z-30 rounded-xl border border-sky-500 bg-slate-900 p-2 shadow-2xl shadow-black/60"
                 >
                   <div className="mb-2 flex items-center justify-between px-1">
                     <h3 className="text-xs font-semibold text-sky-300">{col.label}</h3>

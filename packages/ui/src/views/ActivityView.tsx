@@ -48,6 +48,7 @@ export function ActivityView() {
               <span
                 className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${SOURCE_STYLE[it.source]}`}
                 title={SOURCE_LABELS[it.source]}
+                aria-hidden="true"
               >
                 {SOURCE_GLYPH[it.source]}
               </span>
@@ -56,10 +57,10 @@ export function ActivityView() {
                   <span className="truncate text-sm font-semibold text-slate-200" title={it.canonicalPath}>
                     {it.project}
                   </span>
-                  <span className="shrink-0 text-[11px] text-slate-500">{formatRelative(it.atMs, now)}</span>
+                  <span className="shrink-0 text-xs text-slate-400">{formatRelative(it.atMs, now)}</span>
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-sm text-slate-300">{truncate(it.text, 200)}</p>
-                <p className="mt-1 text-[10px] text-slate-600">{SOURCE_LABELS[it.source]}</p>
+                <p className="mt-1 text-[11px] text-slate-400">{SOURCE_LABELS[it.source]}</p>
               </div>
             </div>
           </li>

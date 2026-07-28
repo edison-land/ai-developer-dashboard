@@ -234,6 +234,13 @@ UI 错误路径：失败的 API 请求被归类为 `network` / `http` / `parse` 
 | 5 · 活动视图 + 定时刷新 + 打磨 | ActivityView 合并、auto-refresh、空态/错误、路径打磨 | 🟡 仅壳（`/api/activity` 返回空） |
 | 6 · Electron 壳 | 主进程 import server + loadURL、electron-builder | ⏳ 未开始（用户暂不做） |
 
+### 视觉/可访问性整改（2026-07-28，Web Interface Guidelines 走查）
+
+- **做了**：`color-scheme: dark` + 全站 `tabular-nums` + `prefers-reduced-motion` 兜底（停 `animate-ping`）+ 看板浮层淡入；卡片由半透明 `bg-slate-900/40~/70` 改实底、悬停边框升 `slate-700` 以强化层次；次要文字 `slate-600→400`、最小字号 `9/10/11px→≥11px`；`<meta name="theme-color">`；Settings 表单补 `name`/`autocomplete`/`spellcheck`/`inputMode`、占位符 `...→…`、`<h2>`、保存状态 `aria-live`、未保存改动 `beforeunload`；错误条/合成失败 `role="alert"`、来源符号 `aria-hidden`、筛选 toggle `aria-pressed`；`formatRelative` 改 `Intl.RelativeTimeFormat`（保留「刚刚」）。
+- **状态**：UI 包 `tsc --noEmit` 与 `vite build` 均通过。两次提交：`chore: ignore playwright skill cache and screenshot` + `style(ui): visual comfort pass …`。
+- **按用户指示跳过（不考虑触屏/键盘）**：全站 `focus-visible` 焦点环、ArchiveDrawer 的 `role=dialog`/焦点陷阱/Esc/遮罩 `<div>`→`<button>`/`overscroll-behavior`、看板悬停展开的键盘/触屏等价交互。
+- **下一步（可选）**：若日后要补键盘/触屏可达性，再统一加焦点环与对话框语义；`packages/core` 现存类型告警仍为独立非阻塞任务（见上）。
+
 ### 关键风险与对策（摘要）
 
 1. Codex schema 漂移（已证实，真实列与假设不同、CLI 版本会变）→ 启动 `PRAGMA table_info` 探测、缺列降级告警、不绑 CLI 版本。

@@ -38,7 +38,7 @@ export function ProjectCard({ project, now }: { project: UnifiedProject; now: nu
   };
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 shadow-sm hover:border-slate-700">
+    <div className="rounded-xl border border-slate-800 bg-slate-900 p-3 shadow-sm hover:border-slate-700">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -65,7 +65,7 @@ export function ProjectCard({ project, now }: { project: UnifiedProject; now: nu
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1">
           {project.sources.map((s) => (
-            <span key={s} className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+            <span key={s} className="rounded bg-slate-800 px-1.5 py-0.5 text-[11px] text-slate-400">
               {SOURCE_LABELS[s]}
             </span>
           ))}
@@ -137,7 +137,7 @@ export function ProjectCard({ project, now }: { project: UnifiedProject; now: nu
               ))}
             </div>
           )}
-          <p className="text-[10px] text-slate-600">
+          <p className="text-[11px] text-slate-400">
             {project.synth.provider}/{project.synth.model} · {formatRelative(project.synth.generatedAtMs, now)}
             {project.synthStale && <span className="ml-1 text-amber-500">· 输入已变</span>}
           </p>
@@ -167,7 +167,11 @@ export function ProjectCard({ project, now }: { project: UnifiedProject; now: nu
           {archive.isPending ? "…" : "📦 归档"}
         </button>
       </div>
-      {synthFailMsg && <p className="mt-1 text-[11px] text-rose-400">⚠ {synthFailMsg}</p>}
+      {synthFailMsg && (
+        <p role="alert" className="mt-1 text-[11px] text-rose-400">
+          ⚠ {synthFailMsg}
+        </p>
+      )}
     </div>
   );
 }

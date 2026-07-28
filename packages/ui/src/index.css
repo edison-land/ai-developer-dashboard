@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {
@@ -11,4 +15,36 @@ body,
 body {
   @apply bg-slate-950 text-slate-200 antialiased;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  /* Dashboard is number-dense (counts, times, ahead/behind); tabular figures keep
+     columns from jittering on refresh. Only affects digit glyphs, safe globally. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Soft fade-in for the kanban hover overlay (and any other transient surface). */
+@keyframes kf-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.kf-fade-in {
+  animation: kf-fade-in 120ms ease-out;
+}
+
+/* Honor OS "reduce motion": neutralize animations/transitions and the busy ping. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-ping {
+    animation: none !important;
+  }
 }

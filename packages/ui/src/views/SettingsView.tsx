@@ -22,6 +22,36 @@ export function SettingsView() {
     setSynthOnRefresh(data.synthOnRefresh);
   }, [data]);
 
+  // Clear API key fields after a successful save so the "leave empty to keep" state
+  // is restored and the beforeunload guard doesn't false-positive.
+  useEffect(() => {
+    if (save.data) {
+      setZhipuKey("");
+      setAnthropicKey("");
+      setOpenaiKey("");
+    }
+  }, [save.data]);
+
+  const dirty =
+    !!data &&
+    (provider !== data.provider ||
+      model !== data.model ||
+      autoRefreshMins !== data.autoRefreshMins ||
+      synthOnRefresh !== data.synthOnRefresh ||
+      zhipuKey !== "" ||
+      anthropicKey !== "" ||
+      openaiKey !== "");
+
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
   const onSave = () => {
     save.mutate({
       provider,
@@ -35,7 +65,8 @@ export function SettingsView() {
   };
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 rounded-xl border border-slate-800 bg-slate-900/40 p-5">
+    <div className="mx-auto max-w-xl space-y-4 rounded-xl border border-slate-800 bg-slate-900 p-5">
+      <h2 className="text-base font-semibold text-slate-100">设置</h2>
       <Field label="AI 总结的模型提供商">
         <select
           value={provider}
@@ -50,6 +81,9 @@ export function SettingsView() {
 
       <Field label="模型（智谱默认 glm-4-flash-250414，免费、非推理；勿用 glm-4.7-flash 等推理模型）">
         <input
+          name="model"
+          autoComplete="off"
+          spellCheck={false}
           value={model}
           onChange={(e) => setModel(e.target.value)}
           placeholder="glm-4-flash-250414"
@@ -60,6 +94,9 @@ export function SettingsView() {
       <Field label={`智谱 BigModel API Key${data?.hasZhipuKey ? "（已设置，留空则不修改）" : "（在 open.bigmodel.cn 生成，免费 flash 模型）"}`}>
         <input
           type="password"
+          name="zhipuApiKey"
+          autoComplete="off"
+          spellCheck={false}
           value={zhipuKey}
           onChange={(e) => setZhipuKey(e.target.value)}
           placeholder={data?.hasZhipuKey ? "••••••••" : "xxxxxxxx.xxxxxxxx"}
@@ -70,9 +107,12 @@ export function SettingsView() {
       <Field label={`Anthropic API Key${data?.hasAnthropicKey ? "（已设置，留空则不修改）" : ""}`}>
         <input
           type="password"
+          name="anthropicApiKey"
+          autoComplete="off"
+          spellCheck={false}
           value={anthropicKey}
           onChange={(e) => setAnthropicKey(e.target.value)}
-          placeholder={data?.hasAnthropicKey ? "••••••••" : "sk-ant-..."}
+          placeholder={data?.hasAnthropicKey ? "••••••••" : "sk-ant-…"}
           className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
         />
       </Field>
@@ -80,9 +120,12 @@ export function SettingsView() {
       <Field label={`OpenAI API Key${data?.hasOpenAIKey ? "（已设置，留空则不修改）" : ""}`}>
         <input
           type="password"
+          name="openaiApiKey"
+          autoComplete="off"
+          spellCheck={false}
           value={openaiKey}
           onChange={(e) => setOpenaiKey(e.target.value)}
-          placeholder={data?.hasOpenAIKey ? "••••••••" : "sk-..."}
+          placeholder={data?.hasOpenAIKey ? "••••••••" : "sk-…"}
           className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm"
         />
       </Field>
@@ -91,6 +134,9 @@ export function SettingsView() {
         <Field label="自动刷新（分钟，0=关）">
           <input
             type="number"
+            name="autoRefreshMins"
+            autoComplete="off"
+            inputMode="numeric"
             min={0}
             value={autoRefreshMins}
             onChange={(e) => setAutoRefreshMins(Number(e.target.value) || 0)}
@@ -107,7 +153,7 @@ export function SettingsView() {
         </label>
       </div>
 
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex items-center gap-3 pt-2" aria-live="polite">
         <button
           onClick={onSave}
           disabled={save.isPending}

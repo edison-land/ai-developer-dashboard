@@ -31,7 +31,7 @@ export function ArchiveDrawer({ onClose }: { onClose: () => void }) {
 
           <ul className="space-y-2">
             {items.map((p) => (
-              <li key={p.canonicalPath} className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+              <li key={p.canonicalPath} className="rounded-lg border border-slate-800 bg-slate-900 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="truncate text-sm font-semibold text-slate-200">{p.name}</h3>
@@ -41,7 +41,7 @@ export function ArchiveDrawer({ onClose }: { onClose: () => void }) {
                     {p.lastActionOneLiner && (
                       <p className="mt-1 truncate text-xs text-slate-400">{truncate(p.lastActionOneLiner, 60)}</p>
                     )}
-                    <p className="mt-1 text-[10px] text-slate-600">归档于 {formatRelative(p.archivedAtMs, now)}</p>
+                    <p className="mt-1 text-[11px] text-slate-400">归档于 {formatRelative(p.archivedAtMs, now)}</p>
                   </div>
                   <button
                     onClick={() => unarchive.mutate(p.canonicalPath)}
@@ -56,7 +56,7 @@ export function ArchiveDrawer({ onClose }: { onClose: () => void }) {
           </ul>
         </div>
 
-        <p className="border-t border-slate-800 px-4 py-2 text-[11px] text-slate-600">
+        <p className="border-t border-slate-800 px-4 py-2 text-xs text-slate-400">
           归档是粘性的：项目重新活跃也不会自动回到看板，需手动恢复。
         </p>
       </div>

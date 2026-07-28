@@ -34,8 +34,8 @@ export default function App() {
     <div className="mx-auto max-w-7xl px-4 py-5">
       <header className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-slate-100">AI Developer Dashboard</h1>
-          <p className="text-xs text-slate-500">
+          <h1 className="text-balance text-lg font-bold text-slate-100">AI Developer Dashboard</h1>
+          <p className="text-xs text-slate-400">
             {projects.isLoading
               ? "加载中…"
               : `${list.length} 个项目 · 更新于 ${formatRelative(projects.data?.generatedAtMs, now)}`}
