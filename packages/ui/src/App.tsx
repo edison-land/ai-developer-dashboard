@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { ErrorBanner } from "./components/ErrorBanner";
-import { useProjects, useRefresh } from "./hooks";
+import { ArchiveDrawer } from "./components/ArchiveDrawer";
+import { FilterBar } from "./components/FilterBar";
+import { useAutoRefresh, useFilter, useProjects, useRefresh, useSettings } from "./hooks";
+import { filterProjects } from "./filter";
 import { formatRelative } from "./lib";
 import { ActivityView } from "./views/ActivityView";
 import { KanbanView } from "./views/KanbanView";
@@ -17,10 +20,15 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("triage");
+  const [showArchive, setShowArchive] = useState(false);
   const projects = useProjects();
   const refresh = useRefresh();
+  const settings = useSettings();
+  const [filter, setFilter] = useFilter();
+  useAutoRefresh(settings.data?.autoRefreshMins);
   const now = Date.now();
   const list = projects.data?.projects ?? [];
+  const filtered = filterProjects(list, filter, now);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-5">
@@ -33,13 +41,21 @@ export default function App() {
               : `${list.length} 个项目 · 更新于 ${formatRelative(projects.data?.generatedAtMs, now)}`}
           </p>
         </div>
-        <button
-          onClick={() => refresh.mutate()}
-          disabled={refresh.isPending}
-          className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-50"
-        >
-          {refresh.isPending ? "刷新中…" : "🔄 刷新"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowArchive(true)}
+            className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700"
+          >
+            📦 归档
+          </button>
+          <button
+            onClick={() => refresh.mutate()}
+            disabled={refresh.isPending}
+            className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+          >
+            {refresh.isPending ? "刷新中…" : "🔄 刷新"}
+          </button>
+        </div>
       </header>
 
       <nav className="mb-5 flex gap-1 border-b border-slate-800">
@@ -63,10 +79,14 @@ export default function App() {
         <ErrorBanner error={projects.error} onRetry={() => projects.refetch()} />
       )}
 
-      {tab === "triage" && <TriageView projects={list} />}
-      {tab === "kanban" && <KanbanView projects={list} />}
+      {(tab === "triage" || tab === "kanban") && <FilterBar filter={filter} onChange={setFilter} />}
+
+      {tab === "triage" && <TriageView projects={filtered} />}
+      {tab === "kanban" && <KanbanView projects={filtered} />}
       {tab === "activity" && <ActivityView />}
       {tab === "settings" && <SettingsView />}
+
+      {showArchive && <ArchiveDrawer onClose={() => setShowArchive(false)} />}
     </div>
   );
 }

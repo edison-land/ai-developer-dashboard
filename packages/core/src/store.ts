@@ -26,6 +26,10 @@ const MIGRATIONS = [
      key   TEXT PRIMARY KEY,
      value TEXT NOT NULL
    )`,
+  `CREATE TABLE IF NOT EXISTS archives (
+     canonical_path TEXT PRIMARY KEY,
+     archived_at_ms INTEGER NOT NULL
+   )`,
 ];
 
 const SETTING_KEYS = ["provider", "model", "auto_refresh_mins", "synth_on_refresh"] as const;
@@ -68,6 +72,12 @@ export class SqliteStore implements Store {
       ),
       deleteOverride: this.db.prepare("DELETE FROM stage_overrides WHERE canonical_path = ?"),
       allOverrides: this.db.prepare("SELECT canonical_path, stage FROM stage_overrides"),
+      upsertArchive: this.db.prepare(
+        `INSERT INTO archives (canonical_path, archived_at_ms) VALUES (?, ?)
+         ON CONFLICT(canonical_path) DO UPDATE SET archived_at_ms = excluded.archived_at_ms`,
+      ),
+      deleteArchive: this.db.prepare("DELETE FROM archives WHERE canonical_path = ?"),
+      allArchives: this.db.prepare("SELECT canonical_path, archived_at_ms FROM archives"),
       allSynth: this.db.prepare("SELECT canonical_path, result_json, input_hash FROM synth_cache"),
       getSetting: this.db.prepare("SELECT value FROM settings WHERE key = ?"),
       upsertSetting: this.db.prepare(
@@ -114,9 +124,22 @@ export class SqliteStore implements Store {
     this.stmts.deleteOverride.run(pathKey(canonicalPath));
   }
 
+  archive(canonicalPath: string, atMs: number): void {
+    this.stmts.upsertArchive.run(pathKey(canonicalPath), atMs);
+  }
+
+  unarchive(canonicalPath: string): void {
+    this.stmts.deleteArchive.run(pathKey(canonicalPath));
+  }
+
   allOverrides(): Map<string, Stage> {
     const rows = this.stmts.allOverrides.all() as { canonical_path: string; stage: Stage }[];
     return new Map(rows.map((r) => [r.canonical_path, r.stage]));
+  }
+
+  allArchived(): Map<string, number> {
+    const rows = this.stmts.allArchives.all() as { canonical_path: string; archived_at_ms: number }[];
+    return new Map(rows.map((r) => [r.canonical_path, r.archived_at_ms]));
   }
 
   allSynth(): Map<string, SynthCacheEntry> {

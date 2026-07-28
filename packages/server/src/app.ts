@@ -7,9 +7,11 @@ import {
   type Store,
   type SynthOutcome,
   type UnifiedProject,
+  buildActivityFeed,
   pathKey,
   resolveConfig,
   STAGE,
+  withArchived,
 } from "@ai-dashboard/core/node";
 import { decodePath } from "./pathParam.js";
 
@@ -69,7 +71,10 @@ export function createApp(deps: ServerDeps): Hono {
   let loadPromise: Promise<void> | null = null;
 
   const refresh = async (): Promise<void> => {
-    state = { projects: await deps.collect(), generatedAtMs: Date.now() };
+    state = {
+      projects: withArchived(await deps.collect(), deps.store.allArchived()),
+      generatedAtMs: Date.now(),
+    };
   };
   const ensureLoaded = async (): Promise<void> => {
     if (!loadPromise) loadPromise = refresh();
@@ -95,7 +100,9 @@ export function createApp(deps: ServerDeps): Hono {
 
   api.get("/projects", async (c) => {
     await ensureLoaded();
-    return c.json({ projects: state.projects, generatedAtMs: state.generatedAtMs });
+    const includeArchived = c.req.query("includeArchived") === "true";
+    const projects = includeArchived ? state.projects : state.projects.filter((p) => !p.archivedAtMs);
+    return c.json({ projects, generatedAtMs: state.generatedAtMs });
   });
 
   api.post("/refresh", async (c) => {
@@ -165,7 +172,28 @@ export function createApp(deps: ServerDeps): Hono {
     return c.json(deps.store.getSettings());
   });
 
-  api.get("/activity", (c) => c.json({ items: [] }));
+  api.post("/projects/:enc/archive", async (c) => {
+    await ensureLoaded();
+    const canonical = decodePath(c.req.param("enc"));
+    if (!findProject(canonical)) return c.json({ error: "not found" }, 404);
+    deps.store.archive(canonical, Date.now());
+    await refresh();
+    return c.json({ project: findProject(canonical) });
+  });
+
+  api.delete("/projects/:enc/archive", async (c) => {
+    const canonical = decodePath(c.req.param("enc"));
+    deps.store.unarchive(canonical);
+    await refresh();
+    return c.json({ project: findProject(canonical) });
+  });
+
+  api.get("/activity", async (c) => {
+    await ensureLoaded();
+    // Archived projects are hidden from the timeline too (R3 decision ④).
+    const live = state.projects.filter((p) => !p.archivedAtMs);
+    return c.json({ items: buildActivityFeed(live), generatedAtMs: state.generatedAtMs });
+  });
 
   app.route("/api", api);
 

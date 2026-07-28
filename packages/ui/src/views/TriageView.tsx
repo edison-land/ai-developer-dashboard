@@ -5,7 +5,11 @@ export function TriageView({ projects }: { projects: UnifiedProject[] }) {
   const now = Date.now();
 
   if (projects.length === 0) {
-    return <p className="py-12 text-center text-slate-500">还没有项目。打开 Claude Code 或 Codex 用一会再来刷新。</p>;
+    return (
+      <p className="py-12 text-center text-slate-500">
+        没有匹配的项目。试试清除筛选条件，或打开 Claude Code / Codex 用一会再来刷新。
+      </p>
+    );
   }
 
   return (

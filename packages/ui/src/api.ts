@@ -1,7 +1,11 @@
-import type { Settings, Stage, SynthOutcome, UnifiedProject } from "@ai-dashboard/core";
+import type { ActivityItem, Settings, Stage, SynthOutcome, UnifiedProject } from "@ai-dashboard/core";
 
 export interface ProjectsResponse {
   projects: UnifiedProject[];
+  generatedAtMs: number;
+}
+export interface ActivityResponse {
+  items: ActivityItem[];
   generatedAtMs: number;
 }
 export interface HealthResponse {
@@ -97,6 +101,8 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: (): Promise<HealthResponse> => request<HealthResponse>("/api/health"),
   projects: (): Promise<ProjectsResponse> => request<ProjectsResponse>("/api/projects"),
+  archivedProjects: (): Promise<ProjectsResponse> =>
+    request<ProjectsResponse>("/api/projects?includeArchived=true"),
   refresh: (): Promise<ProjectsResponse> =>
     request<ProjectsResponse>("/api/refresh", { method: "POST" }),
   setStage: async (canonical: string, stage: Stage): Promise<void> => {
@@ -122,4 +128,11 @@ export const api = {
     request(`/api/projects/${encodePath(canonical)}/synthesize`, { method: "POST" }),
   synthesizeAll: (): Promise<{ total: number; cached: number; fresh: number; failed: number }> =>
     request("/api/synthesize-all", { method: "POST" }),
+  activity: (): Promise<ActivityResponse> => request<ActivityResponse>("/api/activity"),
+  archive: async (canonical: string): Promise<void> => {
+    await request(`/api/projects/${encodePath(canonical)}/archive`, { method: "POST" });
+  },
+  unarchive: async (canonical: string): Promise<void> => {
+    await request(`/api/projects/${encodePath(canonical)}/archive`, { method: "DELETE" });
+  },
 };

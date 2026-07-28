@@ -116,6 +116,9 @@ export interface UnifiedProject {
   synth?: SynthResult;
   /** True when underlying inputs changed since the cached synth was generated. */
   synthStale: boolean;
+  /** Present (archived-at ms) when the user archived this project. Sticky: a new
+   *  burst of activity does NOT clear it — only an explicit restore does. */
+  archivedAtMs?: number;
   signalsBySource: Partial<Record<SourceId, RawSignals>>;
 }
 
@@ -160,8 +163,14 @@ export interface Store {
   getStageOverride(canonicalPath: string): Stage | undefined;
   setStageOverride(canonicalPath: string, stage: Stage): void;
   clearStageOverride(canonicalPath: string): void;
+  /** Archive a project (sticky upsert). atMs = when archived. */
+  archive(canonicalPath: string, atMs: number): void;
+  /** Restore an archived project (no-op if not archived). */
+  unarchive(canonicalPath: string): void;
   /** All overrides, keyed by pathKey. */
   allOverrides(): Map<string, Stage>;
+  /** All archived projects, keyed by pathKey → archived-at ms. */
+  allArchived(): Map<string, number>;
   /** All cached synth results, keyed by pathKey. */
   allSynth(): Map<string, SynthCacheEntry>;
   getSettings(): Settings;

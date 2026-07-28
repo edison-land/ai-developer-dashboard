@@ -154,3 +154,20 @@ export function sortByRecency(projects: UnifiedProject[]): UnifiedProject[] {
     return b.lastActiveMs - a.lastActiveMs;
   });
 }
+
+/**
+ * Stamp each project with its archived-at ms (by case-insensitive pathKey).
+ * Archived state is sticky and independent of the mechanical signals, so it's
+ * applied after collect rather than threaded through the adapters. Returns new
+ * objects (collect output is never mutated).
+ */
+export function withArchived(
+  projects: UnifiedProject[],
+  archived: Map<string, number>,
+): UnifiedProject[] {
+  if (archived.size === 0) return projects;
+  return projects.map((p) => {
+    const at = archived.get(pathKey(p.canonicalPath));
+    return at !== undefined ? { ...p, archivedAtMs: at } : p;
+  });
+}

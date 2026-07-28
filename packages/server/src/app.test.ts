@@ -175,4 +175,89 @@ describe("createApp", () => {
     expect(body.fresh).toBe(2);
     expect(body.failed).toBe(0);
   });
+
+  it("GET /api/activity returns the merged cross-project timeline, newest-first", async () => {
+    collected = [
+      {
+        ...makeProject("D:/Foo"),
+        signalsBySource: {
+          "claude-code": { source: "claude-code", canonicalPath: "D:/Foo", lastActiveMs: 1.7e12, lastActionOneLiner: "CC: edit foo" },
+        },
+      },
+      {
+        ...makeProject("D:/Bar"),
+        git: {
+          branch: "main",
+          headSha: "s",
+          headCommit: { subject: "feat: bar", author: "a", dateMs: 1.7e12 + 1000 },
+          dirtyFileCount: 0,
+          aheadBehind: { ahead: 0, behind: 0, hasUpstream: true },
+        },
+      },
+    ];
+    const res = await createApp(deps()).request("/api/activity");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.items.map((i: any) => [i.project, i.source])).toEqual([
+      ["Bar", "git"], // 1.7e12 + 1000 (newer)
+      ["Foo", "claude-code"], // 1.7e12
+    ]);
+  });
+
+  it("GET /api/activity is empty when no project has actionable signals", async () => {
+    // default fixtures have empty signalsBySource + no git -> no items
+    const res = await createApp(deps()).request("/api/activity");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.items).toEqual([]);
+  });
+
+  it("GET /api/projects excludes archived projects by default", async () => {
+    store.archive("D:/Foo", 1234);
+    const res = await createApp(deps()).request("/api/projects");
+    const body = (await res.json()) as any;
+    expect(body.projects.map((p: any) => p.canonicalPath)).toEqual(["D:/Bar"]);
+  });
+
+  it("GET /api/projects?includeArchived=true keeps them with archivedAtMs", async () => {
+    store.archive("D:/Foo", 1234);
+    const res = await createApp(deps()).request("/api/projects?includeArchived=true");
+    const body = (await res.json()) as any;
+    const foo = body.projects.find((p: any) => p.canonicalPath === "D:/Foo");
+    expect(foo).toBeTruthy();
+    expect(foo.archivedAtMs).toBe(1234);
+  });
+
+  it("POST then DELETE /api/projects/:enc/archive archives and restores", async () => {
+    const archiveRes = await createApp(deps()).request(`/api/projects/${enc("D:/Foo")}/archive`, {
+      method: "POST",
+    });
+    expect(archiveRes.status).toBe(200);
+    expect(store.allArchived().has("d:/foo")).toBe(true);
+
+    const listRes = await createApp(deps()).request("/api/projects");
+    const listBody = (await listRes.json()) as any;
+    expect(listBody.projects.map((p: any) => p.canonicalPath)).toEqual(["D:/Bar"]);
+
+    const restoreRes = await createApp(deps()).request(`/api/projects/${enc("D:/Foo")}/archive`, {
+      method: "DELETE",
+    });
+    expect(restoreRes.status).toBe(200);
+    expect(store.allArchived().has("d:/foo")).toBe(false);
+  });
+
+  it("GET /api/activity hides archived projects", async () => {
+    collected = [
+      {
+        ...makeProject("D:/Foo"),
+        signalsBySource: {
+          "claude-code": { source: "claude-code", canonicalPath: "D:/Foo", lastActiveMs: 1.7e12, lastActionOneLiner: "hi" },
+        },
+      },
+    ];
+    store.archive("D:/Foo", 1234);
+    const res = await createApp(deps()).request("/api/activity");
+    const body = (await res.json()) as any;
+    expect(body.items).toEqual([]); // Foo would normally appear, but it's archived
+  });
 });

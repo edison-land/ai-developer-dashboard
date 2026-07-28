@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RawSignals, Stage, StatusSnapshot, SynthCacheEntry, SynthResult } from "./domain.js";
-import { computeInputHash, mergeByCanonicalPath } from "./aggregate.js";
+import { computeInputHash, mergeByCanonicalPath, withArchived } from "./aggregate.js";
 
 const NOW = 1_700_000_000_000;
 
@@ -136,5 +136,21 @@ describe("stage + synth staleness", () => {
     const synthCache = new Map([["d:/s", { result: makeSynth("building", "old"), inputHash: "old" }]]);
     const out = merge([cc("D:/s", NOW - 1000)], new Map(), { synthCache });
     expect(out[0]!.synthStale).toBe(true);
+  });
+});
+
+describe("withArchived", () => {
+  it("stamps archivedAtMs by case-insensitive pathKey and leaves others untouched", () => {
+    const projects = merge([cc("D:/Foo", NOW - 1000), cc("D:/Bar", NOW - 2000)]);
+    const out = withArchived(projects, new Map([["d:/foo", 1234]]));
+    const foo = out.find((p) => p.name === "Foo")!;
+    const bar = out.find((p) => p.name === "Bar")!;
+    expect(foo.archivedAtMs).toBe(1234);
+    expect(bar.archivedAtMs).toBeUndefined();
+  });
+
+  it("returns the same array reference when nothing is archived", () => {
+    const projects = merge([cc("D:/Foo", NOW - 1000)]);
+    expect(withArchived(projects, new Map())).toBe(projects);
   });
 });

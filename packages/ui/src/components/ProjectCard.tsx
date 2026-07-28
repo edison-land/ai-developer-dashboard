@@ -1,6 +1,6 @@
 import { RECENCY_LABELS, SOURCE_LABELS, STAGE, STAGE_LABELS, STAGE_ORDER, type Stage, type UnifiedProject } from "@ai-dashboard/core";
 import { ApiError } from "../api";
-import { useClearStage, useSetStage, useSynthesize } from "../hooks";
+import { useArchive, useClearStage, useSetStage, useSynthesize } from "../hooks";
 import { formatRelative, truncate } from "../lib";
 
 const STAGE_DOT: Record<Stage, string> = {
@@ -15,6 +15,7 @@ export function ProjectCard({ project, now }: { project: UnifiedProject; now: nu
   const setStage = useSetStage();
   const clearStage = useClearStage();
   const synth = useSynthesize();
+  const archive = useArchive();
   const synthOutcome = synth.data?.outcome;
   // A failed outcome (model error) comes back as HTTP 200 with outcome.ok=false;
   // a network/server failure surfaces as synth.isError. Surface either inline.
@@ -157,6 +158,14 @@ export function ProjectCard({ project, now }: { project: UnifiedProject; now: nu
         {!project.synth && !synth.isPending && (
           <span className="text-[10px] text-slate-600">点总结获取下一步与阻塞</span>
         )}
+        <button
+          onClick={() => archive.mutate(project.canonicalPath)}
+          disabled={archive.isPending}
+          title="归档：从看板隐藏，可随时恢复"
+          className="ml-auto rounded bg-slate-800 px-2 py-1 text-xs text-slate-400 hover:bg-slate-700 hover:text-slate-200 disabled:opacity-50"
+        >
+          {archive.isPending ? "…" : "📦 归档"}
+        </button>
       </div>
       {synthFailMsg && <p className="mt-1 text-[11px] text-rose-400">⚠ {synthFailMsg}</p>}
     </div>
