@@ -42,11 +42,15 @@ export default function App() {
   const selectedProject = selectedPath
     ? list.find((project) => pathKey(project.canonicalPath) === pathKey(selectedPath))
     : undefined;
-  const synthesizeAllMessage = synthesizeAll.isError
-    ? "总结全部失败，请检查模型设置"
-    : synthesizeAll.data
-      ? `更新 ${synthesizeAll.data.fresh} · 缓存 ${synthesizeAll.data.cached} · 失败 ${synthesizeAll.data.failed}`
-      : null;
+  const batchCompleted = synthesizeAll.progress?.completed ?? 0;
+  const batchTotal = synthesizeAll.progress?.total ?? list.length;
+  const synthesizeAllMessage = synthesizeAll.isPending
+    ? `已完成 ${batchCompleted}/${batchTotal} · 更新 ${synthesizeAll.progress?.fresh ?? 0} · 缓存 ${synthesizeAll.progress?.cached ?? 0} · 失败 ${synthesizeAll.progress?.failed ?? 0}`
+    : synthesizeAll.isError
+      ? "总结全部失败，请检查模型设置"
+      : synthesizeAll.data
+        ? `更新 ${synthesizeAll.data.fresh} · 缓存 ${synthesizeAll.data.cached} · 失败 ${synthesizeAll.data.failed}`
+        : null;
 
   return (
     <div className="min-h-screen">
@@ -79,7 +83,17 @@ export default function App() {
                   onClick={() => synthesizeAll.mutate()}
                   disabled={synthesizeAll.isPending || projects.isLoading || list.length === 0}
                   className="ui-button"
-                  title="依次总结所有未归档项目"
+                  title={
+                    synthesizeAll.isPending
+                      ? `已完成 ${batchCompleted}/${batchTotal}`
+                      : "依次总结所有未归档项目"
+                  }
+                  aria-label={
+                    synthesizeAll.isPending
+                      ? `总结全部，已完成 ${batchCompleted}/${batchTotal}`
+                      : "总结全部"
+                  }
+                  aria-busy={synthesizeAll.isPending}
                 >
                   <Icon
                     name="spark"
@@ -87,7 +101,9 @@ export default function App() {
                     className={synthesizeAll.isPending ? "animate-pulse" : ""}
                   />
                   <span className="hidden sm:inline">
-                    {synthesizeAll.isPending ? "总结中…" : "总结全部"}
+                    {synthesizeAll.isPending
+                      ? `已完成 ${batchCompleted}/${batchTotal}`
+                      : "总结全部"}
                   </span>
                 </button>
                 <ThemeToggle />
@@ -110,8 +126,12 @@ export default function App() {
               {synthesizeAllMessage && (
                 <p
                   className={`text-[11px] ${
-                    synthesizeAll.isError || (synthesizeAll.data?.failed ?? 0) > 0
+                    synthesizeAll.isError ||
+                    (synthesizeAll.progress?.failed ?? 0) > 0 ||
+                    (synthesizeAll.data?.failed ?? 0) > 0
                       ? "ui-warning"
+                      : synthesizeAll.isPending
+                        ? "ui-accent"
                       : "ui-success"
                   }`}
                   aria-live="polite"

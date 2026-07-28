@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { FocusPreferences, Stage } from "@ai-dashboard/core";
-import { api } from "./api";
+import { pathKey, type FocusPreferences, type Stage } from "@ai-dashboard/core";
+import {
+  api,
+  type ProjectsResponse,
+  type SynthesizeAllProgressEvent,
+} from "./api";
 import { DEFAULT_FILTER, type ProjectFilter } from "./filter";
 
 export function useProjects() {
@@ -108,14 +112,35 @@ export function useSynthesize() {
 /** Cache-aware sequential synthesis for every unarchived project. */
 export function useSynthesizeAll() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: api.synthesizeAll,
-    onSuccess: () => {
+  const [progress, setProgress] =
+    useState<SynthesizeAllProgressEvent | null>(null);
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.synthesizeAll((event) => {
+        setProgress(event);
+        const updatedProject = event.project;
+        if (!updatedProject) return;
+        qc.setQueryData<ProjectsResponse>(["projects"], (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            projects: current.projects.map((project) =>
+              pathKey(project.canonicalPath) ===
+              pathKey(updatedProject.canonicalPath)
+                ? updatedProject
+                : project,
+            ),
+          };
+        });
+      }),
+    onMutate: () => setProgress(null),
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["projects"] });
       qc.invalidateQueries({ queryKey: ["activity"] });
       qc.invalidateQueries({ queryKey: ["health"] });
     },
   });
+  return { ...mutation, progress };
 }
 
 export function useSettings() {

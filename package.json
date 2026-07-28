@@ -12,6 +12,7 @@
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
     "verify:ui-redesign": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-ui-redesign.ps1",
+    "qa:live-progress": "tsx scripts/qa-live-synthesis-progress.ts",
     "smoke:synth": "tsx scripts/smoke-synth.ts"
   },
   "engines": {

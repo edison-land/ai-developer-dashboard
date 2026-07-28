@@ -22,6 +22,24 @@ export interface SynthesizeAllResponse {
   failed: number;
   generatedAtMs: number;
 }
+export interface SynthesizeAllProgressEvent {
+  type: "progress";
+  canonicalPath: string;
+  completed: number;
+  total: number;
+  status: "cached" | "fresh" | "failed";
+  cached: number;
+  fresh: number;
+  failed: number;
+  project?: UnifiedProject;
+  error?: string;
+}
+interface SynthesizeAllCompleteEvent extends SynthesizeAllResponse {
+  type: "complete";
+}
+type SynthesizeAllEvent =
+  | SynthesizeAllProgressEvent
+  | SynthesizeAllCompleteEvent;
 export interface HealthResponse {
   ok: boolean;
   dataRoot: string;
@@ -72,7 +90,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(input: string, init?: RequestInit): Promise<T> {
+async function fetchResponse(input: string, init?: RequestInit): Promise<Response> {
   let res: Response;
   try {
     res = await fetch(input, init);
@@ -105,11 +123,95 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
     });
   }
 
+  return res;
+}
+
+async function request<T>(input: string, init?: RequestInit): Promise<T> {
+  const res = await fetchResponse(input, init);
   try {
     return (await res.json()) as T;
   } catch {
     throw new ApiError({ kind: "parse", message: "响应不是有效的 JSON", url: input });
   }
+}
+
+async function synthesizeAll(
+  onProgress?: (
+    event: SynthesizeAllProgressEvent,
+  ) => void | Promise<void>,
+): Promise<SynthesizeAllResponse> {
+  const url = "/api/synthesize-all";
+  const res = await fetchResponse(url, { method: "POST" });
+  const reader = res.body?.getReader();
+  if (!reader) {
+    throw new ApiError({
+      kind: "parse",
+      message: "服务没有返回批量总结进度",
+      url,
+    });
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let complete: SynthesizeAllResponse | undefined;
+
+  const consumeLine = async (line: string) => {
+    let event: SynthesizeAllEvent;
+    try {
+      event = JSON.parse(line) as SynthesizeAllEvent;
+    } catch {
+      throw new ApiError({
+        kind: "parse",
+        message: "批量总结进度不是有效的数据",
+        url,
+      });
+    }
+
+    if (event.type === "progress") {
+      await onProgress?.(event);
+      return;
+    }
+    if (event.type === "complete") {
+      const { type: _type, ...result } = event;
+      complete = result;
+      return;
+    }
+    throw new ApiError({
+      kind: "parse",
+      message: "批量总结返回了未知进度",
+      url,
+    });
+  };
+
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (line.trim()) await consumeLine(line);
+      }
+      if (done) break;
+    }
+    if (buffer.trim()) await consumeLine(buffer);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError({
+      kind: "network",
+      message: error instanceof Error ? error.message : "批量总结连接中断",
+      url,
+    });
+  }
+
+  if (!complete) {
+    throw new ApiError({
+      kind: "parse",
+      message: "批量总结没有返回最终统计",
+      url,
+    });
+  }
+  return complete;
 }
 
 export const api = {
@@ -140,8 +242,7 @@ export const api = {
     }),
   synthesize: (canonical: string): Promise<{ project: UnifiedProject; outcome: SynthOutcome }> =>
     request(`/api/projects/${encodePath(canonical)}/synthesize`, { method: "POST" }),
-  synthesizeAll: (): Promise<SynthesizeAllResponse> =>
-    request<SynthesizeAllResponse>("/api/synthesize-all", { method: "POST" }),
+  synthesizeAll,
   activity: (): Promise<ActivityResponse> => request<ActivityResponse>("/api/activity"),
   focusPreferences: (localDate: string): Promise<FocusPreferences> =>
     request<FocusPreferences>(

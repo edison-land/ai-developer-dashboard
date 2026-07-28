@@ -163,17 +163,87 @@ export function createApp(deps: ServerDeps): Hono {
   api.post("/synthesize-all", async (c) => {
     await ensureLoaded();
     const targets = state.projects.filter((project) => !project.archivedAtMs);
-    let cached = 0;
-    let fresh = 0;
-    let failed = 0;
-    for (const p of targets) {
-      const r = await deps.synthesize(p);
-      if (!r.ok) failed++;
-      else if (r.fromCache) cached++;
-      else fresh++;
-    }
-    await refresh();
-    return c.json({ total: targets.length, cached, fresh, failed, generatedAtMs: state.generatedAtMs });
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const send = (event: object) => {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        };
+        void (async () => {
+          let cached = 0;
+          let fresh = 0;
+          let failed = 0;
+          let completed = 0;
+
+          for (const target of targets) {
+            const outcome = await deps.synthesize(target);
+            let status: "cached" | "fresh" | "failed";
+            if (!outcome.ok) {
+              failed++;
+              status = "failed";
+            } else {
+              if (outcome.fromCache) {
+                cached++;
+                status = "cached";
+              } else {
+                fresh++;
+                status = "fresh";
+              }
+              state = {
+                projects: state.projects.map((project) =>
+                  pathKey(project.canonicalPath) === pathKey(target.canonicalPath)
+                    ? {
+                        ...project,
+                        synth: outcome.result,
+                        synthStale: false,
+                        ...(project.stageSource === "override"
+                          ? {}
+                          : { stage: outcome.result.stage, stageSource: "synth" as const }),
+                      }
+                    : project,
+                ),
+                generatedAtMs: Date.now(),
+              };
+            }
+            completed++;
+
+            send({
+              type: "progress",
+              canonicalPath: target.canonicalPath,
+              completed,
+              total: targets.length,
+              status,
+              cached,
+              fresh,
+              failed,
+              project: findProject(target.canonicalPath),
+              ...(!outcome.ok ? { error: outcome.error } : {}),
+            });
+          }
+
+          await refresh();
+          send({
+            type: "complete",
+            total: targets.length,
+            cached,
+            fresh,
+            failed,
+            generatedAtMs: state.generatedAtMs,
+          });
+          controller.close();
+        })().catch((error) => {
+          controller.error(error);
+        });
+      },
+    });
+
+    return new Response(body, {
+      headers: {
+        "cache-control": "no-cache, no-transform",
+        "content-type": "application/x-ndjson; charset=utf-8",
+        "x-content-type-options": "nosniff",
+      },
+    });
   });
 
   api.get("/focus-preferences", (c) => {

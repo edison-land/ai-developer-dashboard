@@ -61,6 +61,13 @@ function enc(p: string): string {
   return Buffer.from(p, "utf8").toString("base64url");
 }
 
+async function readNdjson(response: Response): Promise<any[]> {
+  return (await response.text())
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+}
+
 describe("createApp", () => {
   it("GET /api/health returns ok with dataRoot and dbPath", async () => {
     const res = await createApp(deps()).request("/api/health");
@@ -209,7 +216,7 @@ describe("createApp", () => {
     expect(body.outcome.error).toContain("no key");
   });
 
-  it("POST /api/synthesize-all tallies cached/fresh/failed for non-stale projects", async () => {
+  it("POST /api/synthesize-all tallies cached/fresh/failed in its complete event", async () => {
     const d: ServerDeps = {
       config: cfg,
       store,
@@ -218,10 +225,59 @@ describe("createApp", () => {
     };
     const res = await createApp(d).request("/api/synthesize-all", { method: "POST" });
     expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
-    expect(body.total).toBe(2); // both fixtures are "today" (non-stale)
-    expect(body.fresh).toBe(2);
-    expect(body.failed).toBe(0);
+    expect(res.headers.get("content-type")).toContain("application/x-ndjson");
+    const events = await readNdjson(res);
+    expect(events.filter((event) => event.type === "progress")).toHaveLength(2);
+    expect(events.at(-1)).toMatchObject({
+      type: "complete",
+      total: 2,
+      fresh: 2,
+      failed: 0,
+    });
+  });
+
+  it("POST /api/synthesize-all emits the first project before the second project finishes", async () => {
+    let finishSecond!: (outcome: SynthOutcome) => void;
+    const secondOutcome = new Promise<SynthOutcome>((resolve) => {
+      finishSecond = resolve;
+    });
+    const d: ServerDeps = {
+      config: cfg,
+      store,
+      collect: async () => collected,
+      synthesize: async (project) =>
+        project.canonicalPath === "D:/Foo" ? freshOutcome() : secondOutcome,
+    };
+
+    const response = await Promise.race([
+      createApp(d).request("/api/synthesize-all", { method: "POST" }),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("first progress event was blocked by the unfinished project")),
+          500,
+        ),
+      ),
+    ]);
+    const reader = response.body!.getReader();
+    const firstChunk = await reader.read();
+    const firstLine = new TextDecoder()
+      .decode(firstChunk.value)
+      .split("\n")
+      .find(Boolean);
+    const firstEvent = JSON.parse(firstLine ?? "{}");
+
+    expect(firstEvent).toMatchObject({
+      type: "progress",
+      canonicalPath: "D:/Foo",
+      completed: 1,
+      total: 2,
+      status: "fresh",
+    });
+
+    finishSecond(freshOutcome());
+    while (!(await reader.read()).done) {
+      // Drain the public response so the request finishes cleanly.
+    }
   });
 
   it("POST /api/synthesize-all includes stale projects and excludes archived projects", async () => {
@@ -243,6 +299,7 @@ describe("createApp", () => {
     };
 
     const res = await createApp(d).request("/api/synthesize-all", { method: "POST" });
+    await readNdjson(res);
 
     expect(res.status).toBe(200);
     expect(seen).toEqual(["D:/Old", "D:/Current"]);
@@ -263,10 +320,16 @@ describe("createApp", () => {
     };
 
     const res = await createApp(d).request("/api/synthesize-all", { method: "POST" });
-    const body = (await res.json()) as any;
+    const events = await readNdjson(res);
 
     expect(seen).toEqual(["D:/Foo", "D:/Bar"]);
-    expect(body).toMatchObject({ total: 2, cached: 1, fresh: 0, failed: 1 });
+    expect(events.at(-1)).toMatchObject({
+      type: "complete",
+      total: 2,
+      cached: 1,
+      fresh: 0,
+      failed: 1,
+    });
   });
 
   it("POST /api/synthesize-all runs at most one project synthesis at a time", async () => {
@@ -285,7 +348,8 @@ describe("createApp", () => {
       },
     };
 
-    await createApp(d).request("/api/synthesize-all", { method: "POST" });
+    const response = await createApp(d).request("/api/synthesize-all", { method: "POST" });
+    await readNdjson(response);
 
     expect(maxActive).toBe(1);
   });
