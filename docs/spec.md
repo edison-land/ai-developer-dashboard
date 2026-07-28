@@ -121,7 +121,7 @@ interface StatusSnapshot {        // git 快照
 
 interface SynthResult {
   stage: Stage; summary: string; nextStep: string; blockers: string[];
-  model: string; provider: 'anthropic' | 'openai';
+  model: string; provider: 'zhipu' | 'anthropic' | 'openai';
   generatedAtMs: number; inputHash: string;
   tokenUsage?: { input: number; output: number; cachedRead?: number };
 }
@@ -155,13 +155,15 @@ CREATE TABLE synth_cache (
 );
 CREATE TABLE stage_overrides (canonical_path TEXT PRIMARY KEY, stage, updated_at_ms);
 CREATE TABLE settings (key TEXT PRIMARY KEY, value);
--- settings keys: provider, model, anthropic_api_key, openai_api_key,
---                auto_refresh_mins(0=关), synth_on_refresh, synth_model_pref
+-- settings keys: provider, model, anthropic_api_key, openai_api_key, zhipu_api_key,
+--                auto_refresh_mins(0=关), synth_on_refresh, synth_model_pref, ui_filters
 ```
 
 不存会话内容；API **永不回显** key（仅 `hasAnthropicKey` / `hasOpenAIKey` 布尔）。
 
 > **重要偏离（相对初版计划）**：初版计划假设用 `better-sqlite3`（"Node24/win32-x64 有预编译"）。实测本机 Node 24 编不出 better-sqlite3，**改用 Node 24 内置的 `node:sqlite`（`DatabaseSync`）**，免原生编译；Codex 库以 `{ readOnly: true }` 打开，避免与 Codex 写进程争用。Phase 2 的 Codex 只读访问与预算测试都按 `node:sqlite` API 实现。
+
+> **Provider pivot（用户驱动，2026-07-28）**：初版计划假设 Anthropic（Haiku）+ OpenAI，用户两者皆无，只有 **Zhipu（智谱）BigModel** key。Zhipu 走 OpenAI 兼容端点（`baseURL https://open.bigmodel.cn/api/paas/v4/`），用**已装的 `openai` SDK**（非裸 fetch）+ Bearer key 即可。默认模型 **`glm-4-flash-250414`**（免费、非推理）。`ProviderId = "zhipu" | "anthropic" | "openai"`，Zhipu 为活动默认；Anthropic/OpenAI 的具体 provider impl 延后（抽象已就位，缺 key 不可测）。**坑（已踩已修）**：`glm-4.7-flash` / `glm-4.5-flash` 是**思考模型**——会把整个 `max_tokens` 预算花在 `reasoning_content` 上、`content` 返回空，表现为"解析失败：响应不是合法 JSON"。对策：用非推理 flash + `max_tokens:1024`。**不传 `response_format`**（部分 flash 拒绝），改靠系统 prompt 强约束 + `parseSynthJson` 鲁棒提取（剥 ```json 围栏、取最外层 `{...}`）。
 
 ### HTTP API 契约（Hono，Windows 路径用 base64url 作 `:enc`）
 
@@ -226,11 +228,11 @@ UI 错误路径：失败的 API 请求被归类为 `network` / `http` / `parse` 
 | Phase | 范围 | 状态 |
 |---|---|---|
 | 1 · 机械核心 | CC + git 适配器、聚合、store、Hono 服务、React UI、CLI | ✅ 完成并验证（13 个真实 CC 项目在跑） |
-| 2 · Codex 适配器 + 三源合并 | readonly 打开 `state_5.sqlite`、config.toml 种子、`\\?\` strip、case-normalize | ⏳ 未做（仅 health 探测 `codexAvailable`） |
-| 3 · 总结层 + 成本控制 | bundle / schema / providers / synth、synthesize 端点、按钮、缓存 | ⏳ 未做（仅 domain 接口 + store 存取） |
-| 4 · 阶段看板 + 覆盖 | KanbanView 5 列、stage PATCH/DELETE | 🟡 UI + override 完成；"synth 来源"等 Phase 3 |
+| 2 · Codex 适配器 + 三源合并 | readonly 打开 `state_5.sqlite`、config.toml 种子、`\\?\` strip、case-normalize | ✅ 完成并验证（projectCount 13→34，7 张三源融合卡，2026-07-27） |
+| 3 · 总结层 + 成本控制 | bundle / schema / providers / synth、synthesize 端点、按钮、缓存 | ✅ 完成并验证（Zhipu glm-4-flash-250414 + 输入哈希缓存，81 测试绿，2026-07-28） |
+| 4 · 阶段看板 + 覆盖 | KanbanView 5 列、stage PATCH/DELETE | 🟡 UI + override 完成；"synth 来源"徽标随 Phase 3 已可用；R4 hover 展开待做 |
 | 5 · 活动视图 + 定时刷新 + 打磨 | ActivityView 合并、auto-refresh、空态/错误、路径打磨 | 🟡 仅壳（`/api/activity` 返回空） |
-| 6 · Electron 壳 | 主进程 import server + loadURL、electron-builder | ⏳ 未开始 |
+| 6 · Electron 壳 | 主进程 import server + loadURL、electron-builder | ⏳ 未开始（用户暂不做） |
 
 ### 关键风险与对策（摘要）
 
