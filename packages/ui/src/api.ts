@@ -10,6 +10,15 @@ import type {
 export interface ProjectsResponse {
   projects: UnifiedProject[];
   generatedAtMs: number;
+  synthesis?: RefreshSynthesisSummary;
+}
+export interface RefreshSynthesisSummary {
+  enabled: boolean;
+  total: number;
+  fresh: number;
+  cached: number;
+  failed: number;
+  errors: string[];
 }
 export interface ActivityResponse {
   items: ActivityItem[];
@@ -40,6 +49,70 @@ interface SynthesizeAllCompleteEvent extends SynthesizeAllResponse {
 type SynthesizeAllEvent =
   | SynthesizeAllProgressEvent
   | SynthesizeAllCompleteEvent;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isNonNegativeNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function parseSynthesizeAllEvent(value: unknown): SynthesizeAllEvent {
+  if (!isRecord(value) || typeof value.type !== "string") {
+    throw new ApiError({
+      kind: "parse",
+      message: "批量总结进度缺少事件类型",
+      url: "/api/synthesize-all",
+    });
+  }
+
+  if (value.type === "progress") {
+    const validStatus = value.status === "cached" || value.status === "fresh" || value.status === "failed";
+    const valid =
+      typeof value.canonicalPath === "string" &&
+      isNonNegativeNumber(value.completed) &&
+      isNonNegativeNumber(value.total) &&
+      validStatus &&
+      isNonNegativeNumber(value.cached) &&
+      isNonNegativeNumber(value.fresh) &&
+      isNonNegativeNumber(value.failed) &&
+      (value.project === undefined ||
+        (isRecord(value.project) && typeof value.project.canonicalPath === "string")) &&
+      (value.error === undefined || typeof value.error === "string");
+    if (!valid) {
+      throw new ApiError({
+        kind: "parse",
+        message: "批量总结进度字段不完整",
+        url: "/api/synthesize-all",
+      });
+    }
+    return value as unknown as SynthesizeAllProgressEvent;
+  }
+
+  if (value.type === "complete") {
+    const valid =
+      isNonNegativeNumber(value.total) &&
+      isNonNegativeNumber(value.cached) &&
+      isNonNegativeNumber(value.fresh) &&
+      isNonNegativeNumber(value.failed) &&
+      isNonNegativeNumber(value.generatedAtMs);
+    if (!valid) {
+      throw new ApiError({
+        kind: "parse",
+        message: "批量总结最终统计字段不完整",
+        url: "/api/synthesize-all",
+      });
+    }
+    return value as unknown as SynthesizeAllCompleteEvent;
+  }
+
+  throw new ApiError({
+    kind: "parse",
+    message: "批量总结返回了未知进度",
+    url: "/api/synthesize-all",
+  });
+}
 export interface HealthResponse {
   ok: boolean;
   dataRoot: string;
@@ -156,9 +229,9 @@ async function synthesizeAll(
   let complete: SynthesizeAllResponse | undefined;
 
   const consumeLine = async (line: string) => {
-    let event: SynthesizeAllEvent;
+    let parsed: unknown;
     try {
-      event = JSON.parse(line) as SynthesizeAllEvent;
+      parsed = JSON.parse(line) as unknown;
     } catch {
       throw new ApiError({
         kind: "parse",
@@ -166,6 +239,7 @@ async function synthesizeAll(
         url,
       });
     }
+    const event = parseSynthesizeAllEvent(parsed);
 
     if (event.type === "progress") {
       await onProgress?.(event);
@@ -176,11 +250,6 @@ async function synthesizeAll(
       complete = result;
       return;
     }
-    throw new ApiError({
-      kind: "parse",
-      message: "批量总结返回了未知进度",
-      url,
-    });
   };
 
   try {

@@ -89,8 +89,12 @@ export function SettingsView() {
               className="ui-input"
             >
               <option value="zhipu">智谱 Zhipu GLM（默认）</option>
-              <option value="anthropic">Anthropic Claude（暂未接入）</option>
-              <option value="openai">OpenAI GPT（暂未接入）</option>
+              <option value="anthropic" disabled>
+                Anthropic Claude（未来接入）
+              </option>
+              <option value="openai" disabled>
+                OpenAI GPT（未来接入）
+              </option>
             </select>
           </Field>
           <Field label="模型">

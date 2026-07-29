@@ -35,7 +35,7 @@ export default function App() {
   const refresh = useRefresh();
   const synthesizeAll = useSynthesizeAll();
   const settings = useSettings();
-  useAutoRefresh(settings.data?.autoRefreshMins);
+  const scheduledRefresh = useAutoRefresh(settings.data?.autoRefreshMins);
 
   const now = Date.now();
   const list = projects.data?.projects ?? [];
@@ -50,6 +50,19 @@ export default function App() {
       ? "总结全部失败，请检查模型设置"
       : synthesizeAll.data
         ? `更新 ${synthesizeAll.data.fresh} · 缓存 ${synthesizeAll.data.cached} · 失败 ${synthesizeAll.data.failed}`
+        : null;
+  const latestRefresh = [refresh.data, scheduledRefresh.data]
+    .filter((result): result is NonNullable<typeof refresh.data> => !!result)
+    .sort((a, b) => b.generatedAtMs - a.generatedAtMs)[0];
+  const refreshSummary = latestRefresh?.synthesis;
+  const refreshPending = refresh.isPending || scheduledRefresh.isPending;
+  const refreshError = refresh.isError || scheduledRefresh.isError;
+  const refreshMessage = refreshPending
+    ? "机械状态刷新中…"
+    : refreshError
+      ? "刷新失败，请检查本地服务"
+      : refreshSummary
+        ? `刷新完成 · AI 更新 ${refreshSummary.fresh} · 缓存 ${refreshSummary.cached} · 失败 ${refreshSummary.failed}`
         : null;
 
   return (
@@ -138,6 +151,32 @@ export default function App() {
                 >
                   {synthesizeAllMessage}
                 </p>
+              )}
+              {refreshMessage && (
+                <>
+                  <p
+                    className={`text-[11px] ${
+                      refreshError || (refreshSummary?.failed ?? 0) > 0
+                        ? "ui-warning"
+                        : refreshPending
+                          ? "ui-accent"
+                          : "ui-success"
+                    }`}
+                    aria-live="polite"
+                  >
+                    {refreshMessage}
+                  </p>
+                  {refreshSummary?.errors.length ? (
+                    <ul
+                      aria-label="刷新错误"
+                      className="max-w-[360px] text-right text-[10px] leading-4 ui-warning"
+                    >
+                      {refreshSummary.errors.map((error, index) => (
+                        <li key={`${error}-${index}`}>{error}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
               )}
             </div>
           </div>

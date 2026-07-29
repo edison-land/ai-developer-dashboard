@@ -26,6 +26,21 @@ export interface ServerDeps {
   uiDir?: string;
 }
 
+export interface RefreshSynthesisSummary {
+  enabled: boolean;
+  total: number;
+  fresh: number;
+  cached: number;
+  failed: number;
+  errors: string[];
+}
+
+interface RefreshResult {
+  projects: UnifiedProject[];
+  generatedAtMs: number;
+  synthesis?: RefreshSynthesisSummary;
+}
+
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -81,15 +96,97 @@ export function createApp(deps: ServerDeps): Hono {
   const app = new Hono();
   let state: { projects: UnifiedProject[]; generatedAtMs: number } = { projects: [], generatedAtMs: 0 };
   let loadPromise: Promise<void> | null = null;
+  let refreshPromise: Promise<RefreshResult> | null = null;
+  let refreshIncludesSynthesis = false;
 
-  const refresh = async (): Promise<void> => {
-    state = {
-      projects: withArchived(await deps.collect(), deps.store.allArchived()),
-      generatedAtMs: Date.now(),
+  const applySynthesis = (
+    projects: UnifiedProject[],
+    target: UnifiedProject,
+    outcome: SynthOutcome,
+  ): UnifiedProject[] => {
+    if (!outcome.ok) return projects;
+    return projects.map((project) =>
+      pathKey(project.canonicalPath) === pathKey(target.canonicalPath)
+        ? {
+            ...project,
+            synth: outcome.result,
+            synthStale: false,
+            ...(project.stageSource === "override"
+              ? {}
+              : { stage: outcome.result.stage, stageSource: "synth" as const }),
+          }
+        : project,
+    );
+  };
+
+  const performRefresh = async (includeSynthesis: boolean): Promise<RefreshResult> => {
+    let projects = withArchived(await deps.collect(), deps.store.allArchived());
+    const shouldSynthesize = includeSynthesis && deps.store.getSettings().synthOnRefresh;
+    const synthesis: RefreshSynthesisSummary | undefined = shouldSynthesize
+      ? { enabled: true, total: 0, fresh: 0, cached: 0, failed: 0, errors: [] }
+      : undefined;
+
+    if (synthesis) {
+      const targets = projects.filter((project) => !project.archivedAtMs);
+      synthesis.total = targets.length;
+      for (const target of targets) {
+        let outcome: SynthOutcome;
+        try {
+          outcome = await deps.synthesize(target);
+        } catch (error) {
+          outcome = {
+            ok: false,
+            error: `模型调用失败：${error instanceof Error ? error.message : String(error)}`,
+          };
+        }
+        if (!outcome.ok) {
+          synthesis.failed++;
+          synthesis.errors.push(`${target.name}: ${outcome.error}`);
+          continue;
+        }
+        if (outcome.fromCache) synthesis.cached++;
+        else synthesis.fresh++;
+        projects = applySynthesis(projects, target, outcome);
+      }
+    }
+
+    const generatedAtMs = Date.now();
+    state = { projects, generatedAtMs };
+    return {
+      projects,
+      generatedAtMs,
+      ...(synthesis ? { synthesis } : {}),
     };
   };
+
+  const refresh = async (includeSynthesis = false): Promise<RefreshResult> => {
+    if (refreshPromise) {
+      const inFlight = refreshPromise;
+      const inFlightIncludesSynthesis = refreshIncludesSynthesis;
+      const result = await inFlight;
+      if (includeSynthesis && !inFlightIncludesSynthesis) return refresh(true);
+      return result;
+    }
+    refreshIncludesSynthesis = includeSynthesis;
+    const inFlight = performRefresh(includeSynthesis);
+    refreshPromise = inFlight;
+    try {
+      return await inFlight;
+    } finally {
+      if (refreshPromise === inFlight) {
+        refreshPromise = null;
+        refreshIncludesSynthesis = false;
+      }
+    }
+  };
   const ensureLoaded = async (): Promise<void> => {
-    if (!loadPromise) loadPromise = refresh();
+    if (!loadPromise) {
+      const inFlight = refresh(false).then(() => undefined);
+      loadPromise = inFlight.catch((error) => {
+        loadPromise = null;
+        throw error;
+      });
+    }
     await loadPromise;
   };
   const findProject = (canonical: string): UnifiedProject | undefined =>
@@ -118,8 +215,8 @@ export function createApp(deps: ServerDeps): Hono {
   });
 
   api.post("/refresh", async (c) => {
-    await refresh();
-    return c.json({ projects: state.projects, generatedAtMs: state.generatedAtMs });
+    const result = await refresh(true);
+    return c.json(result);
   });
 
   api.get("/projects/:enc", async (c) => {
@@ -139,14 +236,14 @@ export function createApp(deps: ServerDeps): Hono {
     const canonical = decodePath(c.req.param("enc"));
     if (!findProject(canonical)) return c.json({ error: "not found" }, 404);
     deps.store.setStageOverride(canonical, stage);
-    await refresh();
+    await refresh(false);
     return c.json({ project: findProject(canonical) });
   });
 
   api.delete("/projects/:enc/stage", async (c) => {
     const canonical = decodePath(c.req.param("enc"));
     deps.store.clearStageOverride(canonical);
-    await refresh();
+    await refresh(false);
     return c.json({ project: findProject(canonical) });
   });
 
@@ -156,7 +253,7 @@ export function createApp(deps: ServerDeps): Hono {
     const project = findProject(canonical);
     if (!project) return c.json({ error: "not found" }, 404);
     const outcome = await deps.synthesize(project);
-    await refresh();
+    await refresh(false);
     return c.json({ project: findProject(canonical), outcome });
   });
 
@@ -176,7 +273,15 @@ export function createApp(deps: ServerDeps): Hono {
           let completed = 0;
 
           for (const target of targets) {
-            const outcome = await deps.synthesize(target);
+            let outcome: SynthOutcome;
+            try {
+              outcome = await deps.synthesize(target);
+            } catch (error) {
+              outcome = {
+                ok: false,
+                error: `模型调用失败：${error instanceof Error ? error.message : String(error)}`,
+              };
+            }
             let status: "cached" | "fresh" | "failed";
             if (!outcome.ok) {
               failed++;
@@ -189,21 +294,7 @@ export function createApp(deps: ServerDeps): Hono {
                 fresh++;
                 status = "fresh";
               }
-              state = {
-                projects: state.projects.map((project) =>
-                  pathKey(project.canonicalPath) === pathKey(target.canonicalPath)
-                    ? {
-                        ...project,
-                        synth: outcome.result,
-                        synthStale: false,
-                        ...(project.stageSource === "override"
-                          ? {}
-                          : { stage: outcome.result.stage, stageSource: "synth" as const }),
-                      }
-                    : project,
-                ),
-                generatedAtMs: Date.now(),
-              };
+              state = { projects: applySynthesis(state.projects, target, outcome), generatedAtMs: Date.now() };
             }
             completed++;
 
@@ -221,7 +312,7 @@ export function createApp(deps: ServerDeps): Hono {
             });
           }
 
-          await refresh();
+          await refresh(false);
           send({
             type: "complete",
             total: targets.length,
@@ -301,6 +392,9 @@ export function createApp(deps: ServerDeps): Hono {
   api.get("/settings", (c) => c.json(deps.store.getSettings()));
   api.put("/settings", async (c) => {
     const body = (await c.req.json().catch(() => ({}))) ?? {};
+    if (body.provider !== undefined && body.provider !== "zhipu") {
+      return c.json({ error: "当前只支持 zhipu provider，其他 provider 尚未实现" }, 400);
+    }
     deps.store.setSettings(body);
     return c.json(deps.store.getSettings());
   });
@@ -310,14 +404,14 @@ export function createApp(deps: ServerDeps): Hono {
     const canonical = decodePath(c.req.param("enc"));
     if (!findProject(canonical)) return c.json({ error: "not found" }, 404);
     deps.store.archive(canonical, Date.now());
-    await refresh();
+    await refresh(false);
     return c.json({ project: findProject(canonical) });
   });
 
   api.delete("/projects/:enc/archive", async (c) => {
     const canonical = decodePath(c.req.param("enc"));
     deps.store.unarchive(canonical);
-    await refresh();
+    await refresh(false);
     return c.json({ project: findProject(canonical) });
   });
 

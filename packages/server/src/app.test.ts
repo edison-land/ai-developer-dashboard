@@ -112,18 +112,59 @@ describe("createApp", () => {
     expect(res.status).toBe(400);
   });
 
-  it("PUT /api/settings stores settings and never echoes the raw key", async () => {
+  it("PUT /api/settings rejects providers that are not implemented", async () => {
     const res = await createApp(deps()).request("/api/settings", {
       method: "PUT",
       body: JSON.stringify({ provider: "openai", anthropicApiKey: "sk-secret" }),
       headers: { "content-type": "application/json" },
     });
+    expect(res.status).toBe(400);
+    expect(store.getSettings().provider).toBe("zhipu");
+  });
+
+  it("PUT /api/settings stores the supported provider and never echoes the raw key", async () => {
+    const res = await createApp(deps()).request("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({ provider: "zhipu", zhipuApiKey: "sk-secret" }),
+      headers: { "content-type": "application/json" },
+    });
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
-    expect(body.provider).toBe("openai");
-    expect(body.hasAnthropicKey).toBe(true);
-    expect(body.anthropicApiKey).toBeUndefined();
+    expect(body.provider).toBe("zhipu");
+    expect(body.hasZhipuKey).toBe(true);
+    expect(body.zhipuApiKey).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain("sk-secret");
+  });
+
+  it("refresh keeps mechanical results when refresh-time synthesis is disabled", async () => {
+    const synth = vi.fn(async (): Promise<SynthOutcome> => freshOutcome());
+    const response = await createApp({ ...deps(), synthesize: synth }).request("/api/refresh", {
+      method: "POST",
+    });
+    const body = (await response.json()) as any;
+    expect(response.status).toBe(200);
+    expect(synth).not.toHaveBeenCalled();
+    expect(body.synthesis).toBeUndefined();
+    expect(body.projects).toHaveLength(2);
+  });
+
+  it("refresh-time synthesis runs only for live projects and reports failures without rolling back collection", async () => {
+    store.setSettings({ synthOnRefresh: true });
+    store.archive("D:/Bar", 123);
+    const seen: string[] = [];
+    const synth = vi.fn(async (project: UnifiedProject): Promise<SynthOutcome> => {
+      seen.push(project.canonicalPath);
+      return { ok: false, error: "no key" };
+    });
+    const response = await createApp({ ...deps(), synthesize: synth }).request("/api/refresh", {
+      method: "POST",
+    });
+    const body = (await response.json()) as any;
+    expect(response.status).toBe(200);
+    expect(seen).toEqual(["D:/Foo"]);
+    expect(body.projects).toHaveLength(2);
+    expect(body.synthesis).toMatchObject({ enabled: true, total: 1, fresh: 0, cached: 0, failed: 1 });
+    expect(body.synthesis.errors[0]).toContain("no key");
   });
 
   it("PUT then GET /api/focus-preferences preserves order and same-day dismissals", async () => {
@@ -175,19 +216,25 @@ describe("createApp", () => {
   });
 
   it("returns 500 JSON with the cause when collect throws (for UI diagnosis)", async () => {
+    let fail = true;
     const throwing: ServerDeps = {
       config: cfg,
       store,
       collect: async () => {
-        throw new Error("boom: sqlite locked");
+        if (fail) throw new Error("boom: sqlite locked");
+        return collected;
       },
       synthesize: async () => freshOutcome(),
     };
-    const res = await createApp(throwing).request("/api/projects");
+    const app = createApp(throwing);
+    const res = await app.request("/api/projects");
     expect(res.status).toBe(500);
     const body = (await res.json()) as any;
     expect(body.error).toBe("internal_error");
     expect(body.message).toContain("boom: sqlite locked");
+    fail = false;
+    const retry = await app.request("/api/projects");
+    expect(retry.status).toBe(200);
   });
 
   it("POST /api/projects/:enc/synthesize returns the outcome + refreshed project", async () => {

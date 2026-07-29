@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { pathKey, type FocusPreferences, type Stage } from "@ai-dashboard/core";
 import {
@@ -73,13 +73,23 @@ export function useRefresh() {
  */
 export function useAutoRefresh(intervalMins: number | undefined) {
   const refresh = useRefresh();
+  const running = useRef(false);
   useEffect(() => {
     const mins = intervalMins ?? 0;
     if (mins <= 0) return;
-    const id = setInterval(() => refresh.mutate(), mins * 60_000);
+    const id = setInterval(() => {
+      if (running.current) return;
+      running.current = true;
+      refresh.mutate(undefined, {
+        onSettled: () => {
+          running.current = false;
+        },
+      });
+    }, mins * 60_000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intervalMins]);
+  return refresh;
 }
 
 export function useSetStage() {

@@ -44,14 +44,19 @@ describe("SqliteStore", () => {
   it("stores settings and api keys without leaking keys through getSettings", () => {
     const s = new SqliteStore(dbPath);
     expect(s.getSettings().hasAnthropicKey).toBe(false);
-    s.setSettings({ provider: "openai", model: "gpt-4o-mini", anthropicApiKey: "sk-secret" });
+    s.setSettings({ provider: "zhipu", model: "glm-4-flash-250414", zhipuApiKey: "sk-secret" });
     const settings = s.getSettings();
-    expect(settings.provider).toBe("openai");
-    expect(settings.hasAnthropicKey).toBe(true);
-    expect(settings.model).toBe("gpt-4o-mini");
+    expect(settings.provider).toBe("zhipu");
+    expect(settings.hasZhipuKey).toBe(true);
+    expect(settings.model).toBe("glm-4-flash-250414");
     expect(JSON.stringify(settings)).not.toContain("sk-secret");
-    expect(s.getApiKey("anthropic")).toBe("sk-secret");
-    expect(s.getApiKey("openai")).toBeUndefined();
+    expect(s.getApiKey("zhipu")).toBe("sk-secret");
+    expect(s.getApiKey("anthropic")).toBeUndefined();
+  });
+
+  it("rejects an unimplemented active provider", () => {
+    const s = new SqliteStore(dbPath);
+    expect(() => s.setSettings({ provider: "openai" })).toThrow(/只支持 zhipu/);
   });
 
   it("persists across instances reopening the same file", () => {

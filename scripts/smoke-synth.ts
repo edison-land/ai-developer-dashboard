@@ -12,8 +12,8 @@
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
-import { Dashboard, resolveConfig, SqliteStore, synthesize } from "@ai-dashboard/core/node";
-import { NodeTailReader, ZhipuProvider } from "@ai-dashboard/server";
+import { Dashboard, resolveConfig, SqliteStore, synthesize } from "../packages/core/src/node.ts";
+import { NodeTailReader, ZhipuProvider } from "../packages/server/src/index.ts";
 
 const MAX_INPUT_TOKENS = 2500;
 const PICK = 3;
@@ -33,6 +33,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   const model = settings.model || "glm-4-flash-250414";
+  const startedAt = new Date().toISOString();
   console.log(`provider: zhipu | model: ${model} | projects root: ${cfg.dataDir}`);
 
   // Collect real projects.
@@ -51,7 +52,8 @@ async function main(): Promise<void> {
   for (const p of picks) console.log("  -", p.canonicalPath);
 
   // Synthesize into a TEMP store so the real dashboard cache isn't polluted.
-  const tempDb = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "addb-smoke-")), "smoke.db");
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "addb-smoke-"));
+  const tempDb = path.join(tempDir, "smoke.db");
   const store = new SqliteStore(tempDb);
   const tailReader = new NodeTailReader();
   const provider = new ZhipuProvider({ apiKey, defaultModel: model });
@@ -78,7 +80,8 @@ async function main(): Promise<void> {
     console.log(`     summary: ${r1.result.summary}`);
     console.log(`     nextStep: ${r1.result.nextStep}`);
     if (inTok > MAX_INPUT_TOKENS) {
-      console.warn(`  ⚠ input ${inTok} 超过 ${MAX_INPUT_TOKENS} token（bundle 过大？）`);
+      console.error(`  ✗ input ${inTok} 超过 ${MAX_INPUT_TOKENS} token 上限`);
+      failures++;
     }
 
     // Second call must hit the input-hash cache (provider NOT called again).
@@ -90,9 +93,11 @@ async function main(): Promise<void> {
   }
 
   store.close();
+  fs.rmSync(tempDir, { recursive: true, force: true });
   console.log(`\n--- totals ---`);
+  console.log(`runAt=${startedAt} provider=zhipu model=${model} selected=${picks.length}`);
   console.log(`input=${totalIn} output=${totalOut} tokens | failures=${failures}`);
-  console.log(`成本估算：glm-4.7-flash 为免费模型 → ≈ ¥0（付费模型按官网单价 × token 估算）`);
+  console.log(`成本估算：${model} 的费用请以服务商当前价格为准。`);
   console.log(failures === 0 ? "\n✓ 冒烟通过" : `\n✗ ${failures} 项失败`);
   process.exit(failures > 0 ? 1 : 0);
 }

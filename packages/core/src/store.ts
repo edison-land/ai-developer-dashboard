@@ -273,8 +273,9 @@ export class SqliteStore implements Store {
   getSettings(): Settings {
     const rows = this.stmts.allSettings.all() as { key: string; value: string }[];
     const map = new Map(rows.map((r) => [r.key, r.value]));
+    const storedProvider = map.get("provider");
     return {
-      provider: (map.get("provider") as Settings["provider"]) || DEFAULT_SETTINGS.provider,
+      provider: storedProvider === "zhipu" ? "zhipu" : DEFAULT_SETTINGS.provider,
       model: map.get("model") || DEFAULT_SETTINGS.model,
       hasAnthropicKey: Boolean(map.get("anthropic_api_key")),
       hasOpenAIKey: Boolean(map.get("openai_api_key")),
@@ -285,6 +286,9 @@ export class SqliteStore implements Store {
   }
 
   setSettings(patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string; zhipuApiKey?: string }): void {
+    if (patch.provider !== undefined && patch.provider !== "zhipu") {
+      throw new Error("当前只支持 zhipu provider，其他 provider 尚未实现");
+    }
     for (const [field, storageKey] of SETTING_FIELDS) {
       const value = patch[field];
       if (value === undefined) continue;

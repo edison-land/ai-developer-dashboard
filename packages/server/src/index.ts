@@ -67,8 +67,8 @@ export function startServer(deps: ServerDeps, opts: StartOptions) {
   const app = createApp(deps);
   const hostname = opts.hostname ?? "127.0.0.1";
   const server = serve({ fetch: app.fetch, port: opts.port, hostname });
-  // Kick off a background refresh so /health shows a real project count quickly.
-  void fetch(`http://${hostname}:${opts.port}/api/refresh`, { method: "POST" }).catch(() => {});
+  // Warm the mechanical project cache without triggering optional AI synthesis.
+  void fetch(`http://${hostname}:${opts.port}/api/projects`).catch(() => {});
   return server;
 }
 

@@ -60,6 +60,15 @@ async function main(): Promise<void> {
 
   const deps = createServerDeps({ config, uiDir });
   const server = startServer(deps, { port });
+  server.on("error", (error) => {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EADDRINUSE") {
+      console.error(`启动失败：端口 ${port} 已被占用。请换一个端口，例如 pnpm start -- --port ${port + 1}`);
+    } else {
+      console.error(`启动失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+    process.exitCode = 1;
+  });
   const url = `http://127.0.0.1:${port}`;
 
   process.stdout.write(`\n  AI Developer Dashboard → ${url}\n  Data dir: ${config.dataDir}\n\n`);
