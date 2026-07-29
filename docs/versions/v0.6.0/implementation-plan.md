@@ -1,6 +1,8 @@
 # 聚焦式界面重设计实施计划
 
-- 设计依据：`docs/superpowers/specs/2026-07-28-focused-dashboard-redesign-design.md`
+> 里程碑：v0.6.0。本计划已由提交 `d46a968` 完成实施，统一验收入口为 `pnpm verify:ui-redesign`。版本入口见 [`docs/README.md`](../../README.md)。
+
+- 设计依据：本目录的 [`design.md`](design.md)
 - 目标：把默认页面改造成“今日三个重点”，并交付暖白/深墨双主题、紧凑项目页和右侧详情面板
 - 实施方式：先建立可测试的推荐与偏好能力，再重组界面，最后做真实数据视觉验收
 

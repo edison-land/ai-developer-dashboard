@@ -1,35 +1,78 @@
 # AI Developer Dashboard
 
-A local project kanban / triage board for developers juggling many projects across AI coding
-tools (Claude Code, Codex). Answers: *which project should I work on today, what stage is each
-at, and what's the next step?*
+一个运行在本机的 AI 开发项目工作台。它把 Claude Code、Codex 和 Git 的项目记录汇总到同一个页面，帮助用户快速回答三个问题：
 
-- **Local-first.** Reads `.claude.json`, Codex `state_5.sqlite`, and `git` directly from disk.
-  Data never leaves your machine.
-- **Cost-controlled AI.** Mechanical signals are always free. Semantic fields (stage / next step /
- blockers) are synthesized **on demand** with a cheap model and content-hash caching — a full daily
- refresh of ~15 projects is well under $0.12.
+1. 今天最值得推进哪几个项目？
+2. 每个项目现在处于什么状态？
+3. 下一步具体做什么？
 
-## Quick start
+## 当前状态
+
+本地网页 MVP 和“今日重点”界面已经完成，适合在本机持续试用；Electron 桌面安装包尚未开始。
+
+当前完成情况、已知缺口和后续开发顺序，以 [版本化文档总览](docs/README.md) 为准。
+
+## 已有能力
+
+- **今日重点**：自动推荐三个优先项目，也可以手动置顶、排序或当天移除。
+- **项目管理**：列表/阶段两种视图，支持搜索、来源筛选、时间筛选、阶段覆盖、详情查看和归档恢复。
+- **跨工具汇总**：按项目路径合并 Claude Code、Codex 与 Git 的本地信号。
+- **AI 总结**：按需生成项目阶段、摘要、下一步和阻塞项；当前实际接通的是智谱 GLM。
+- **成本控制**：只在用户触发时总结，并用输入哈希缓存避免重复调用；“总结全部”会逐项显示进度。
+- **最近动态**：把 Claude Code、Codex 和 Git 的近期动作合并成时间线。
+- **本地偏好**：保存阶段、归档、今日重点、筛选、主题和刷新设置。
+- **明暗主题**：支持浅色、深色和跟随系统。
+
+项目采集、缓存和设置保存在本机。只有用户主动触发 AI 总结时，经过截断的少量项目上下文才会发送给已配置的模型服务。
+
+## 快速启动
 
 ```bash
 pnpm install
-pnpm build:ui          # build the React UI once
-pnpm start             # start the local server and open the browser
+pnpm build:ui
+pnpm start
 ```
 
-For live UI development (HMR), run the backend and the Vite dev server separately:
+启动后会在本机运行服务并打开浏览器。
+
+开发界面时，可以分别运行后端和前端：
 
 ```bash
-pnpm --filter @ai-dashboard/cli dev          # backend on :7777
-pnpm --filter @ai-dashboard/ui dev           # vite on :5173, proxies /api -> :7777
+pnpm --filter @ai-dashboard/cli dev
+pnpm --filter @ai-dashboard/ui dev
 ```
 
-## Layout
+- 后端：`http://127.0.0.1:7777`
+- 前端：`http://127.0.0.1:5173`
 
+## 验证
+
+统一验收入口：
+
+```bash
+pnpm verify:ui-redesign
 ```
-packages/core    pure TS: domain, paths, aggregate, synth orchestration (+ /node: adapters, store)
-packages/server  Hono HTTP API + LLM providers; serves the built UI
-packages/ui      Vite + React + Tailwind
-apps/cli         `npx ai-dashboard` entrypoint
+
+它会依次执行全仓类型检查、自动测试和前端生产构建。
+
+其他专项命令：
+
+```bash
+pnpm smoke:synth       # 使用本机已配置的真实模型做 AI 冒烟
+pnpm qa:live-progress  # 启动不调用真实模型的批量进度演示环境
 ```
+
+## 代码结构
+
+```text
+packages/core    项目数据、路径合并、推荐规则、AI 总结编排和本地存储
+packages/server  本地 HTTP 接口、模型接入和静态网页托管
+packages/ui      React 网页界面
+apps/cli         启动服务并打开浏览器的命令行入口
+scripts          验收与专项冒烟脚本
+docs             产品说明、当前进度和历史设计记录
+```
+
+## 文档入口
+
+- [版本化文档总览](docs/README.md)：查看全部需求里程碑、当前进度和下一阶段。
