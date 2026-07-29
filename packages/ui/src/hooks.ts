@@ -29,6 +29,7 @@ export function useArchived() {
 export function useArchive() {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: ["archive"],
     mutationFn: (canonical: string) => api.archive(canonical),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["projects"] });

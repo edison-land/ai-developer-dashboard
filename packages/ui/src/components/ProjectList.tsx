@@ -1,4 +1,5 @@
-import type { UnifiedProject } from "@ai-dashboard/core";
+import { pathKey, type UnifiedProject } from "@ai-dashboard/core";
+import { useMutationState } from "@tanstack/react-query";
 import { useArchive } from "../hooks";
 import { ProjectListRow } from "./ProjectListRow";
 
@@ -11,6 +12,10 @@ export function ProjectList({
 }) {
   const now = Date.now();
   const archive = useArchive();
+  const pendingArchives = useMutationState<string | undefined>({
+    filters: { mutationKey: ["archive"], status: "pending" },
+    select: (mutation) => mutation.state.variables as string | undefined,
+  });
   return (
     <>
       <div className="ui-panel overflow-hidden">
@@ -22,7 +27,9 @@ export function ProjectList({
             onOpen={() => onOpenProject(project)}
             onArchive={() => archive.mutate(project.canonicalPath)}
             archivePending={
-              archive.isPending && archive.variables === project.canonicalPath
+              pendingArchives.some(
+                (path) => path !== undefined && pathKey(path) === pathKey(project.canonicalPath),
+              )
             }
           />
         ))}
