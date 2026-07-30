@@ -87,3 +87,29 @@ FAQ 回答以下问题：
 - 所有相对链接有效。
 - `git diff --check` 通过。
 - 临时目录和截图不进入提交。
+
+## 实施进度
+
+> 状态：README 已完成并通过本地验收
+
+### 已完成
+
+- 根 README 已改为英文主文和中文摘要。
+- 已加入产品问题、现有功能、工作方式、数据边界、快速启动、当前状态和 FAQ。
+- 已区分现有能力、v0.9.1 计划和暂缓的 Electron 工作。
+- GitHub description 已定稿，共 154 个字符。
+
+### 验证结果
+
+- README 本地链接检查通过。
+- `git diff --check` 通过。
+- 全仓类型检查通过。
+- 自动测试共 141 项，全部通过。
+- 前端生产构建通过。
+- `pnpm verify:ui-redesign` 通过。
+
+### 待办与下一步
+
+- 提交 README 和本进度更新。
+- 创建公开 GitHub 仓库 `DrErwin/ai-developer-dashboard`。
+- 设置 GitHub description，推送 `main`，再核对远程提交。

@@ -1,80 +1,160 @@
 # AI Developer Dashboard
 
-一个运行在本机的 AI 开发项目工作台。它把 Claude Code、Codex 和 Git 的项目记录汇总到同一个页面，帮助用户快速回答三个问题：
+A local-first AI developer dashboard for Claude Code, OpenAI Codex, and Git. It helps you triage AI coding projects, track project status, review recent activity, and decide what to work on next.
 
-1. 今天最值得推进哪几个项目？
-2. 每个项目现在处于什么状态？
-3. 下一步具体做什么？
+> **中文简介：** AI Developer Dashboard 是一个运行在本机的 AI 编程项目工作台。它按项目汇总 Claude Code、OpenAI Codex 和 Git 的活动，帮助你判断今天推进什么、项目处于什么阶段，以及下一步该做什么。
 
-## 当前状态
+## What problem does it solve?
 
-本地网页 MVP 和“今日重点”界面已经完成，适合在本机持续试用；Electron 桌面安装包尚未开始。
+Claude Code sessions, Codex tasks, and Git commits each record a different part of your development work. When you maintain several local projects, reconstructing progress and priorities takes time.
 
-当前完成情况、已知缺口和后续开发顺序，以 [版本化文档总览](docs/README.md) 为准。
+AI Developer Dashboard groups those signals by project path and gives you one project triage view:
 
-## 已有能力
+- Which projects need attention today?
+- What stage is each project in?
+- What concrete action should come next?
 
-- **今日重点**：自动推荐三个优先项目，也可以手动置顶、排序或当天移除。
-- **项目管理**：列表/阶段两种视图，支持搜索、来源筛选、时间筛选、阶段覆盖、详情查看和归档恢复。
-- **跨工具汇总**：按项目路径合并 Claude Code、Codex 与 Git 的本地信号。
-- **AI 总结**：按需生成项目阶段、摘要、下一步和阻塞项；当前实际接通的是智谱 GLM。
-- **成本控制**：只在用户触发时总结，并用输入哈希缓存避免重复调用；“总结全部”会逐项显示进度。
-- **最近动态**：把 Claude Code、Codex 和 Git 的近期动作合并成时间线。
-- **本地偏好**：保存阶段、归档、今日重点、筛选、主题和刷新设置。
-- **明暗主题**：支持浅色、深色和跟随系统。
+## Key features
 
-项目采集、缓存和设置保存在本机。只有用户主动触发 AI 总结时，经过截断的少量项目上下文才会发送给已配置的模型服务。
+| Feature | What it does |
+|---|---|
+| Today focus | Selects up to three priority projects. You can pin, reorder, or hide a project for the day. |
+| Project management | Provides list and stage-board views with search, source filters, time filters, stage overrides, details, archive, and restore. |
+| Local signal aggregation | Merges Claude Code, OpenAI Codex, and Git activity by canonical project path. |
+| AI project summaries | Generates a stage, summary, next step, blockers, and attention state when you request it. The implemented provider is Zhipu GLM. |
+| Cost controls | Caches summaries by input hash and shows item-level progress during batch runs. |
+| Activity timeline | Combines recent actions from Claude Code, OpenAI Codex, and Git. |
+| Local preferences | Stores focus choices, stages, archives, filters, theme, and refresh settings on your computer. |
 
-## 快速启动
+## How it works
+
+```text
+Claude Code + OpenAI Codex + Git
+                 |
+         project path matching
+                 |
+       local project state store
+                 |
+      focus, projects, and activity
+                 |
+       optional AI project summary
+```
+
+1. Local adapters read project metadata from Claude Code, OpenAI Codex, and Git.
+2. The core package normalizes paths and merges records that belong to the same project.
+3. The local server stores dashboard state in `~/.ai-dashboard` and serves the React interface.
+4. An AI summary request builds a capped prompt from recent project context and a compact Git snapshot.
+
+## Privacy and AI usage
+
+> [!IMPORTANT]
+> Normal project collection and dashboard browsing stay on your computer. The dashboard does not upload project source files.
+
+AI summaries require a configured model service. When you request a summary, the dashboard sends a bounded prompt that can contain:
+
+- a truncated recent instruction;
+- up to two recent Claude Code transcript turns;
+- the Git branch, latest commit subject, worktree counts, and a small sample of changed filenames.
+
+The dashboard stores API keys in its local data store and does not return them through the settings API. You can use project collection, filters, stages, archives, and activity views without an API key. AI summaries remain unavailable until you configure one.
+
+## Quick start
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 20 or newer
+- [pnpm](https://pnpm.io/) 10
+- Git
+
+Claude Code and OpenAI Codex are optional data sources. The dashboard still starts when one source is absent.
+
+### Install and run
 
 ```bash
+git clone https://github.com/DrErwin/ai-developer-dashboard.git
+cd ai-developer-dashboard
 pnpm install
 pnpm build:ui
 pnpm start
 ```
 
-启动后会在本机运行服务并打开浏览器。
+The command starts the local service and opens the dashboard in your browser.
 
-开发界面时，可以分别运行后端和前端：
+### Development
+
+Run the server and UI in separate terminals:
 
 ```bash
 pnpm --filter @ai-dashboard/cli dev
 pnpm --filter @ai-dashboard/ui dev
 ```
 
-- 后端：`http://127.0.0.1:7777`
-- 前端：`http://127.0.0.1:5173`
+- Local server: `http://127.0.0.1:7777`
+- Vite development UI: `http://127.0.0.1:5173`
 
-## 验证
+## Current status
 
-统一验收入口：
+> [!NOTE]
+> The local web MVP is ready for ongoing use. The project does not provide an Electron desktop installer yet.
+
+| Area | Status |
+|---|---|
+| Local web dashboard | Available |
+| Claude Code, OpenAI Codex, and Git aggregation | Available |
+| AI summaries through Zhipu GLM | Available after API key setup |
+| Generic OpenAI-compatible provider settings | Planned for v0.9.1 |
+| Electron desktop application | Deferred |
+
+See the [versioned documentation](docs/README.md) for completed milestones, planned work, and known gaps.
+
+## FAQ
+
+### What is AI Developer Dashboard?
+
+AI Developer Dashboard is a local-first project triage tool for developers who work across several AI coding projects. It combines Claude Code, OpenAI Codex, and Git signals in one browser-based dashboard.
+
+### Does it upload source code?
+
+No. Project collection reads local metadata and does not upload source files. An AI summary sends the bounded context listed in [Privacy and AI usage](#privacy-and-ai-usage) to the model service you configure.
+
+### Which AI coding tools does it support?
+
+The dashboard reads local project activity from Claude Code and OpenAI Codex, then combines it with Git repository state. Zhipu GLM provides the implemented AI summary service. Other model providers remain planned work.
+
+### Can it run without an AI model?
+
+Yes. You can collect and browse projects, manage stages and archives, use filters, and review activity without an API key. AI-generated summaries require a configured model.
+
+## Verification
+
+Run the release verification entry point:
 
 ```bash
 pnpm verify:ui-redesign
 ```
 
-它会依次执行全仓类型检查、自动测试和前端生产构建。
+It runs workspace type checks, automated tests, and the production UI build.
 
-其他专项命令：
+Two focused checks are also available:
 
 ```bash
-pnpm smoke:synth       # 使用本机已配置的真实模型做 AI 冒烟
-pnpm qa:live-progress  # 启动不调用真实模型的批量进度演示环境
+pnpm smoke:synth       # Call the model configured on this computer
+pnpm qa:live-progress  # Run the batch-progress demo without a model call
 ```
 
-## 代码结构
+## Project structure
 
 ```text
-packages/core    项目数据、路径合并、推荐规则、AI 总结编排和本地存储
-packages/server  本地 HTTP 接口、模型接入和静态网页托管
-packages/ui      React 网页界面
-apps/cli         启动服务并打开浏览器的命令行入口
-scripts          验收与专项冒烟脚本
-docs             产品说明、当前进度和历史设计记录
+packages/core    Project data, path merging, focus rules, AI summary orchestration, and local storage
+packages/server  Local HTTP API, model integration, and static UI hosting
+packages/ui      React dashboard
+apps/cli         Local service launcher and browser entry point
+scripts          Release verification and focused smoke checks
+docs             Product requirements, milestone status, and design records
 ```
 
-## 文档入口
+## Documentation
 
-- [版本化文档总览](docs/README.md)：查看全部需求里程碑、当前进度和下一阶段。
-- [故障排查](docs/troubleshooting.md)：启动、数据源、数据库和模型失败时的处理方式。
-- [发布检查表](docs/release-checklist.md)：发布前自动、真实模型和人工视觉验收。
+- [Versioned documentation](docs/README.md): requirements, completion status, and the next milestone.
+- [Troubleshooting](docs/troubleshooting.md): startup, data-source, database, and model failures.
+- [Release checklist](docs/release-checklist.md): automated checks, live model checks, and visual review.
