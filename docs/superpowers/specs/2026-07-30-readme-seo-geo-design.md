@@ -90,7 +90,7 @@ FAQ 回答以下问题：
 
 ## 实施进度
 
-> 状态：README 已完成并通过本地验收
+> 状态：README 已完成并发布到 GitHub
 
 ### 已完成
 
@@ -108,8 +108,11 @@ FAQ 回答以下问题：
 - 前端生产构建通过。
 - `pnpm verify:ui-redesign` 通过。
 
-### 待办与下一步
+### 发布结果
 
-- 提交 README 和本进度更新。
-- 创建公开 GitHub 仓库 `DrErwin/ai-developer-dashboard`。
-- 设置 GitHub description，推送 `main`，再核对远程提交。
+- README 实施提交为 `7c4b308`。
+- 公开仓库已创建：`https://github.com/DrErwin/ai-developer-dashboard`。
+- GitHub description 已设置为确认版本。
+- 本地 `main` 已配置为跟踪 `origin/main`。
+- README、description 和远程提交均已核对。
+- `.playwright-mcp/`、`.superpowers/` 和 `current-triage.png` 保留在本机，没有进入仓库。
