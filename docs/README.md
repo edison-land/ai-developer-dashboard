@@ -5,7 +5,7 @@ AI Developer Dashboard 是一个本机项目工作台，把 Claude Code、Codex 
 ## 当前进度
 
 - **最新完成里程碑**：v0.9.0 · UI 回归保护
-- **下一计划里程碑**：v1.0.0 · Electron 桌面产品化（暂缓）
+- **下一计划里程碑**：v0.9.1 · 交互效率与模型接口通用化
 - **桌面产品化**：v1.0.0 · 暂缓
 - **远期自动化方向**：v2.0.0 · 项目任务卡驱动对话执行，需求已记录、尚未排期
 - **文档整理日期**：2026-07-29
@@ -26,6 +26,7 @@ AI Developer Dashboard 是一个本机项目工作台，把 Claude Code、Codex 
 | v0.7.1 | 重点信号与来源展示完善 | ✅ 已完成 | [需求](versions/v0.7.1/requirements.md) | [完成情况](versions/v0.7.1/completion.md) | — |
 | v0.8.0 | 现有能力名实一致 | ✅ 已完成 | [需求](versions/v0.8.0/requirements.md) | [完成情况](versions/v0.8.0/completion.md) | — |
 | v0.9.0 | UI 回归保护 | ✅ 已完成 | [需求](versions/v0.9.0/requirements.md) | [完成情况](versions/v0.9.0/completion.md) | — |
+| v0.9.1 | 交互效率与模型接口通用化 | 🟡 计划中 | [需求](versions/v0.9.1/requirements.md) | [完成情况](versions/v0.9.1/completion.md) | — |
 | v1.0.0 | Electron 桌面产品化 | ⏸️ 暂缓 | [需求](versions/v1.0.0/requirements.md) | [完成情况](versions/v1.0.0/completion.md) | — |
 | v2.0.0 | 项目任务卡驱动对话执行 | 💡 远期规划 | [需求](versions/v2.0.0/requirements.md) | [完成情况](versions/v2.0.0/completion.md) | — |
 
