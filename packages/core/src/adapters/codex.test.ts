@@ -1,7 +1,12 @@
+import { createRequire } from "node:module";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveConfig } from "../config.js";
 import { reduceThreads, seedsFromToml, type ThreadRow, CodexAdapter } from "./codex.js";
+
+const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
 
 const cfg = resolveConfig();
 const hasCodex = fs.existsSync(cfg.codexDb);
@@ -107,5 +112,43 @@ describe("CodexAdapter", () => {
   itReal("includes at least one project with a non-empty one-liner", async () => {
     const signals = await new CodexAdapter(cfg).collect({});
     expect(signals.some((s) => (s.lastActionOneLiner ?? "").length > 0)).toBe(true);
+  });
+
+  it("keeps a real thread timestamp when the same project is also a config seed", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ai-dashboard-codex-"));
+    const dbPath = path.join(root, "state_5.sqlite");
+    const configToml = path.join(root, "config.toml");
+    const updatedAtSec = 1_900_000_000;
+    try {
+      fs.writeFileSync(configToml, '[projects."D:/Foo"]\n');
+      const db = new DatabaseSync(dbPath);
+      db.exec(`
+        CREATE TABLE threads (
+          cwd TEXT,
+          updated_at INTEGER,
+          created_at INTEGER,
+          first_user_message TEXT,
+          title TEXT,
+          tokens_used INTEGER,
+          git_branch TEXT,
+          git_sha TEXT,
+          model_provider TEXT,
+          archived INTEGER
+        )
+      `);
+      db.prepare(
+        `INSERT INTO threads
+          (cwd, updated_at, created_at, first_user_message, archived)
+         VALUES (?, ?, ?, ?, 0)`,
+      ).run("D:/Foo", updatedAtSec, updatedAtSec - 10, "just worked");
+      db.close();
+
+      const signals = await new CodexAdapter({ ...cfg, codexDb: dbPath, codexConfigToml: configToml }).collect({});
+      const project = signals.find((signal) => signal.canonicalPath === "D:/Foo");
+      expect(project?.lastActiveMs).toBe(updatedAtSec * 1000);
+      expect(project?.lastActionOneLiner).toBe("just worked");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });

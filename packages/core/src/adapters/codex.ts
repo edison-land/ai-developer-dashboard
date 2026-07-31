@@ -147,7 +147,11 @@ export class CodexAdapter implements Adapter {
     const fromSeeds = this.readSeeds();
     // Seeds only fill paths the threads didn't cover; dedup by pathKey.
     const byKey = new Map<string, RawSignals>();
-    for (const s of [...fromThreads, ...fromSeeds]) byKey.set(pathKey(s.canonicalPath), s);
+    for (const s of fromThreads) byKey.set(pathKey(s.canonicalPath), s);
+    for (const s of fromSeeds) {
+      const key = pathKey(s.canonicalPath);
+      if (!byKey.has(key)) byKey.set(key, s);
+    }
     return [...byKey.values()];
   }
 
