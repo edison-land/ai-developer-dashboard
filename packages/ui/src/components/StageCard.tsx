@@ -6,15 +6,23 @@ export function StageCard({
   project,
   now,
   onOpen,
+  onDragStart,
+  onDragEnd,
 }: {
   project: UnifiedProject;
   now: number;
   onOpen: () => void;
+  onDragStart: (event: React.DragEvent<HTMLButtonElement>) => void;
+  onDragEnd: () => void;
 }) {
   return (
     <button
       type="button"
+      draggable
       onClick={onOpen}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      aria-label={`打开 ${project.name} 项目详情，可拖动到其他阶段`}
       className="stage-card group w-full rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-soft)] ui-divider"
       style={{ background: "var(--surface-elevated)" }}
     >

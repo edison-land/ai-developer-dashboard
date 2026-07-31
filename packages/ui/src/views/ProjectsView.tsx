@@ -1,7 +1,7 @@
 import type { UnifiedProject } from "@ai-dashboard/core";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { filterProjects } from "../filter";
-import { useFilter } from "../hooks";
+import { useFilter, useSetStage } from "../hooks";
 import { ProjectList } from "../components/ProjectList";
 import {
   ProjectToolbar,
@@ -23,17 +23,21 @@ function loadView(): ProjectViewMode {
 export function ProjectsView({
   projects,
   onOpenProject,
-  onOpenArchive,
 }: {
   projects: UnifiedProject[];
   onOpenProject: (project: UnifiedProject) => void;
-  onOpenArchive: () => void;
 }) {
   const [filter, setFilter] = useFilter();
   const [viewMode, setViewMode] = useState<ProjectViewMode>(loadView);
+  const setStage = useSetStage();
   const filtered = useMemo(
     () => filterProjects(projects, filter, Date.now()),
     [projects, filter],
+  );
+  const persistStage = useCallback(
+    (canonical: string, stage: import("@ai-dashboard/core").Stage) =>
+      setStage.mutateAsync({ canonical, stage }),
+    [setStage],
   );
 
   useEffect(() => {
@@ -62,7 +66,6 @@ export function ProjectsView({
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         resultCount={filtered.length}
-        onOpenArchive={onOpenArchive}
       />
 
       {filtered.length === 0 ? (
@@ -76,7 +79,11 @@ export function ProjectsView({
       ) : viewMode === "list" ? (
         <ProjectList projects={filtered} onOpenProject={onOpenProject} />
       ) : (
-        <StageBoard projects={filtered} onOpenProject={onOpenProject} />
+        <StageBoard
+          projects={filtered}
+          onOpenProject={onOpenProject}
+          onSetStage={persistStage}
+        />
       )}
     </div>
   );

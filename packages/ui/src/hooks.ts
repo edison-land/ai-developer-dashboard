@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { pathKey, type FocusPreferences, type Stage } from "@ai-dashboard/core";
 import {
   api,
@@ -7,6 +7,7 @@ import {
   type SynthesizeAllProgressEvent,
 } from "./api";
 import { DEFAULT_FILTER, type ProjectFilter } from "./filter";
+import type { ActivityFilterState } from "./activityFilter";
 
 export function useProjects() {
   return useQuery({ queryKey: ["projects"], queryFn: api.projects, staleTime: 60_000 });
@@ -16,8 +17,13 @@ export function useHealth() {
   return useQuery({ queryKey: ["health"], queryFn: api.health, staleTime: 30_000 });
 }
 
-export function useActivity() {
-  return useQuery({ queryKey: ["activity"], queryFn: api.activity, staleTime: 60_000 });
+export function useActivity(filters: ActivityFilterState = { sources: [], project: "", range: "all" }) {
+  return useQuery({
+    queryKey: ["activity", filters.sources.join(","), filters.project, filters.range],
+    queryFn: () => api.activity(filters),
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+  });
 }
 
 /** All projects including archived (for the archive drawer). */
@@ -98,7 +104,26 @@ export function useSetStage() {
   return useMutation({
     mutationFn: ({ canonical, stage }: { canonical: string; stage: Stage }) =>
       api.setStage(canonical, stage),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+    onMutate: async ({ canonical, stage }) => {
+      await qc.cancelQueries({ queryKey: ["projects"] });
+      const previous = qc.getQueryData<ProjectsResponse>(["projects"]);
+      qc.setQueryData<ProjectsResponse>(["projects"], (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          projects: current.projects.map((project) =>
+            pathKey(project.canonicalPath) === pathKey(canonical)
+              ? { ...project, stage, stageSource: "override" as const }
+              : project,
+          ),
+        };
+      });
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) qc.setQueryData(["projects"], context.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["projects"] }),
   });
 }
 

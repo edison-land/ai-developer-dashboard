@@ -169,19 +169,18 @@ export function FocusCard({
         </button>
       </div>
 
-      {editing && (
-        <FocusEditor
-          pinned={pinned}
-          canMoveLeft={pinned && pinnedIndex > 0}
-          canMoveRight={pinned && pinnedIndex < pinnedCount - 1}
-          onPin={onPin}
-          onUnpin={onUnpin}
-          onMoveLeft={onMoveLeft}
-          onMoveRight={onMoveRight}
-          onDismiss={onDismiss}
-          disabled={saving}
-        />
-      )}
+      <FocusEditor
+        pinned={pinned}
+        canMoveLeft={pinned && pinnedIndex > 0}
+        canMoveRight={pinned && pinnedIndex < pinnedCount - 1}
+        onPin={onPin}
+        onUnpin={onUnpin}
+        onMoveLeft={onMoveLeft}
+        onMoveRight={onMoveRight}
+        onDismiss={onDismiss}
+        disabled={saving}
+        visible={editing}
+      />
     </article>
   );
 }

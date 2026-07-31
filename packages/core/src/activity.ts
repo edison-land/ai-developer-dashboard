@@ -1,4 +1,15 @@
-import type { ActivityItem, UnifiedProject } from "./domain.js";
+import type { ActivityItem, SourceId, UnifiedProject } from "./domain.js";
+
+export const ACTIVITY_TIME_RANGES = ["today", "7d", "all"] as const;
+export type ActivityTimeRange = (typeof ACTIVITY_TIME_RANGES)[number];
+
+export interface ActivityFilter {
+  /** Empty means all sources. */
+  sources?: SourceId[];
+  /** Matches either the project name or canonical path. */
+  project?: string;
+  range?: ActivityTimeRange;
+}
 
 export interface BuildActivityOpts {
   /** Cap the feed to the N most recent items. Default 100. */
@@ -63,4 +74,31 @@ export function buildActivityFeed(
 
   items.sort((a, b) => b.atMs - a.atMs);
   return items.slice(0, Math.max(0, limit));
+}
+
+/** Apply the public activity-page filters to a derived feed. */
+export function filterActivityFeed(
+  items: ActivityItem[],
+  filter: ActivityFilter = {},
+  nowMs = Date.now(),
+): ActivityItem[] {
+  const sources = new Set(filter.sources ?? []);
+  const project = filter.project?.trim().toLocaleLowerCase();
+  const range = filter.range ?? "all";
+  const fromMs =
+    range === "today"
+      ? new Date(new Date(nowMs).setHours(0, 0, 0, 0)).getTime()
+      : range === "7d"
+        ? nowMs - 7 * 24 * 60 * 60 * 1000
+        : Number.NEGATIVE_INFINITY;
+
+  return items.filter((item) => {
+    if (sources.size > 0 && !sources.has(item.source)) return false;
+    if (project) {
+      const name = item.project.toLocaleLowerCase();
+      const path = item.canonicalPath.toLocaleLowerCase();
+      if (name !== project && path !== project) return false;
+    }
+    return item.atMs >= fromMs;
+  });
 }

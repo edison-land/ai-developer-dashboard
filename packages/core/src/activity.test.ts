@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ActivityItem, RawSignals, StatusSnapshot, UnifiedProject } from "./domain.js";
-import { buildActivityFeed, DEFAULT_ACTIVITY_LIMIT } from "./activity.js";
+import { buildActivityFeed, DEFAULT_ACTIVITY_LIMIT, filterActivityFeed } from "./activity.js";
 
 const NOW = 1_700_000_000_000;
 
@@ -98,5 +98,14 @@ describe("buildActivityFeed", () => {
 
   it("handles an empty project list", () => {
     expect(buildActivityFeed([])).toEqual([]);
+  });
+
+  it("filters by source, project, and a rolling seven-day window", () => {
+    const items = [
+      { source: "codex", project: "alpha", canonicalPath: "D:/Alpha", atMs: NOW - 1_000, text: "a" },
+      { source: "git", project: "alpha", canonicalPath: "D:/Alpha", atMs: NOW - 2 * 24 * 60 * 60 * 1000, text: "b" },
+      { source: "codex", project: "beta", canonicalPath: "D:/Beta", atMs: NOW - 8 * 24 * 60 * 60 * 1000, text: "c" },
+    ] as ActivityItem[];
+    expect(filterActivityFeed(items, { sources: ["codex"], project: "alpha", range: "7d" }, NOW)).toEqual([items[0]]);
   });
 });

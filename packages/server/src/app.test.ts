@@ -136,6 +136,25 @@ describe("createApp", () => {
     expect(JSON.stringify(body)).not.toContain("sk-secret");
   });
 
+  it("PUT /api/settings accepts any OpenAI-compatible preset and keeps only a configured flag public", async () => {
+    const res = await createApp(deps()).request("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        provider: "deepseek",
+        requestUrl: "https://api.deepseek.com/v1/",
+        model: "deepseek-chat",
+        apiKey: "deep-secret",
+      }),
+      headers: { "content-type": "application/json" },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body).toMatchObject({ provider: "deepseek", requestUrl: "https://api.deepseek.com/v1/", hasApiKey: true });
+    expect(body.apiKey).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain("deep-secret");
+    expect(store.getApiKey("deepseek")).toBe("deep-secret");
+  });
+
   it("refresh keeps mechanical results when refresh-time synthesis is disabled", async () => {
     const synth = vi.fn(async (): Promise<SynthOutcome> => freshOutcome());
     const response = await createApp({ ...deps(), synthesize: synth }).request("/api/refresh", {
@@ -435,6 +454,28 @@ describe("createApp", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body.items).toEqual([]);
+  });
+
+  it("GET /api/activity applies source and project filters", async () => {
+    const now = Date.now();
+    collected = [
+      {
+        ...makeProject("D:/Foo"),
+        signalsBySource: {
+          codex: { source: "codex", canonicalPath: "D:/Foo", lastActiveMs: now, lastActionOneLiner: "foo" },
+        },
+      },
+      {
+        ...makeProject("D:/Bar"),
+        signalsBySource: {
+          git: { source: "git", canonicalPath: "D:/Bar", lastActiveMs: now, lastActionOneLiner: "bar" },
+        },
+      },
+    ];
+    const res = await createApp(deps()).request("/api/activity?sources=codex&project=Foo");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.items.map((item: any) => [item.project, item.source])).toEqual([["Foo", "codex"]]);
   });
 
   it("GET /api/projects excludes archived projects by default", async () => {

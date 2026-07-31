@@ -1,5 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
-import type { ProviderId } from "@ai-dashboard/core";
+import {
+  PROVIDER_PRESETS,
+  providerPreset,
+  type ProviderId,
+} from "@ai-dashboard/core";
 import { Icon } from "../components/Icons";
 import { useSaveSettings, useSettings } from "../hooks";
 import { useTheme, type ThemePreference } from "../theme";
@@ -10,37 +14,34 @@ export function SettingsView() {
   const { preference, setPreference } = useTheme();
 
   const [provider, setProvider] = useState<ProviderId>("zhipu");
+  const [requestUrl, setRequestUrl] = useState("");
   const [model, setModel] = useState("");
-  const [zhipuKey, setZhipuKey] = useState("");
-  const [anthropicKey, setAnthropicKey] = useState("");
-  const [openaiKey, setOpenaiKey] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [autoRefreshMins, setAutoRefreshMins] = useState(0);
   const [synthOnRefresh, setSynthOnRefresh] = useState(false);
 
   useEffect(() => {
     if (!data) return;
     setProvider(data.provider);
-    setModel(data.model);
+    setRequestUrl(data.requestUrl || providerPreset(data.provider)?.requestUrl || "");
+    setModel(data.model || providerPreset(data.provider)?.recommendedModel || "");
     setAutoRefreshMins(data.autoRefreshMins);
     setSynthOnRefresh(data.synthOnRefresh);
   }, [data]);
 
   useEffect(() => {
     if (!save.data) return;
-    setZhipuKey("");
-    setAnthropicKey("");
-    setOpenaiKey("");
+    setApiKey("");
   }, [save.data]);
 
   const dirty =
     !!data &&
     (provider !== data.provider ||
+      requestUrl !== (data.requestUrl || providerPreset(data.provider)?.requestUrl || "") ||
       model !== data.model ||
       autoRefreshMins !== data.autoRefreshMins ||
       synthOnRefresh !== data.synthOnRefresh ||
-      zhipuKey !== "" ||
-      anthropicKey !== "" ||
-      openaiKey !== "");
+      apiKey !== "");
 
   useEffect(() => {
     if (!dirty) return;
@@ -55,12 +56,13 @@ export function SettingsView() {
   const onSave = () => {
     save.mutate({
       provider,
+      requestUrl,
       model,
       autoRefreshMins,
       synthOnRefresh,
-      zhipuApiKey: zhipuKey || undefined,
-      anthropicApiKey: anthropicKey || undefined,
-      openaiApiKey: openaiKey || undefined,
+      apiKey: apiKey || undefined,
+      // Keep the original field for a seamless migration of existing Zhipu keys.
+      zhipuApiKey: provider === "zhipu" ? apiKey || undefined : undefined,
     });
   };
 
@@ -85,17 +87,37 @@ export function SettingsView() {
           <Field label="模型提供商">
             <select
               value={provider}
-              onChange={(event) => setProvider(event.target.value as ProviderId)}
+              onChange={(event) => {
+                const next = event.target.value as ProviderId;
+                const preset = providerPreset(next);
+                setProvider(next);
+                if (!preset || preset.protocol !== "openai-chat-completions") return;
+                setRequestUrl(preset.requestUrl);
+                setModel(preset.recommendedModel);
+              }}
               className="ui-input"
             >
-              <option value="zhipu">智谱 Zhipu GLM（默认）</option>
-              <option value="anthropic" disabled>
-                Anthropic Claude（未来接入）
-              </option>
-              <option value="openai" disabled>
-                OpenAI GPT（未来接入）
-              </option>
+              {PROVIDER_PRESETS.map((preset) => (
+                <option
+                  key={preset.id}
+                  value={preset.id}
+                  disabled={preset.protocol !== "openai-chat-completions"}
+                >
+                  {preset.label}{preset.id === "zhipu" ? "（默认）" : ""}
+                </option>
+              ))}
             </select>
+          </Field>
+          <Field label="请求地址（OpenAI Chat Completions）">
+            <input
+              name="requestUrl"
+              autoComplete="off"
+              spellCheck={false}
+              value={requestUrl}
+              onChange={(event) => setRequestUrl(event.target.value)}
+              placeholder="https://api.openai.com/v1/"
+              className="ui-input"
+            />
           </Field>
           <Field label="模型">
             <input
@@ -110,31 +132,18 @@ export function SettingsView() {
           </Field>
         </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           <SecretField
-            label="智谱 API Key"
-            name="zhipuApiKey"
-            value={zhipuKey}
-            onChange={setZhipuKey}
-            configured={data?.hasZhipuKey}
-            emptyPlaceholder="xxxxxxxx.xxxxxxxx"
+            label={`${providerPreset(provider)?.label ?? "当前提供商"} API Key`}
+            name="apiKey"
+            value={apiKey}
+            onChange={setApiKey}
+            configured={data?.hasApiKey ?? (provider === "zhipu" ? data?.hasZhipuKey : false)}
+            emptyPlaceholder="粘贴 API Key（仅保存在本机）"
           />
-          <SecretField
-            label="Anthropic API Key"
-            name="anthropicApiKey"
-            value={anthropicKey}
-            onChange={setAnthropicKey}
-            configured={data?.hasAnthropicKey}
-            emptyPlaceholder="sk-ant-…"
-          />
-          <SecretField
-            label="OpenAI API Key"
-            name="openaiApiKey"
-            value={openaiKey}
-            onChange={setOpenaiKey}
-            configured={data?.hasOpenAIKey}
-            emptyPlaceholder="sk-…"
-          />
+          <div className="rounded-xl border p-3 text-xs leading-5 ui-muted ui-divider">
+            预设只会填入推荐地址和模型；地址、模型和密钥都可以自行修改。密钥不会通过设置接口回显。
+          </div>
         </div>
       </SettingsSection>
 

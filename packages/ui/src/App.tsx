@@ -93,6 +93,16 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => setShowArchive(true)}
+                  className="ui-button"
+                  title="查看历史归档"
+                  aria-label="历史归档"
+                >
+                  <Icon name="archive" size={15} />
+                  <span className="hidden sm:inline">历史归档</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => synthesizeAll.mutate()}
                   disabled={synthesizeAll.isPending || projects.isLoading || list.length === 0}
                   className="ui-button"
@@ -228,7 +238,6 @@ export default function App() {
             <ProjectsView
               projects={list}
               onOpenProject={(project) => setSelectedPath(project.canonicalPath)}
-              onOpenArchive={() => setShowArchive(true)}
             />
           ))}
         {tab === "activity" && <ActivityView />}

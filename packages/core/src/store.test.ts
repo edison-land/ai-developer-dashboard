@@ -59,6 +59,24 @@ describe("SqliteStore", () => {
     expect(() => s.setSettings({ provider: "openai" })).toThrow(/只支持 zhipu/);
   });
 
+  it("persists an OpenAI-compatible preset URL and never exposes its key", () => {
+    const s = new SqliteStore(dbPath);
+    s.setSettings({
+      provider: "deepseek",
+      requestUrl: "https://api.deepseek.com/v1/",
+      model: "deepseek-chat",
+      apiKey: "deep-secret",
+    });
+    expect(s.getSettings()).toMatchObject({
+      provider: "deepseek",
+      requestUrl: "https://api.deepseek.com/v1/",
+      model: "deepseek-chat",
+      hasApiKey: true,
+    });
+    expect(JSON.stringify(s.getSettings())).not.toContain("deep-secret");
+    expect(s.getApiKey("deepseek")).toBe("deep-secret");
+  });
+
   it("persists across instances reopening the same file", () => {
     const s1 = new SqliteStore(dbPath);
     s1.setSynth("D:/X", synth);

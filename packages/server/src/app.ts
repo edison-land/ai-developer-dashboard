@@ -8,9 +8,13 @@ import {
   type SynthOutcome,
   type UnifiedProject,
   buildActivityFeed,
+  filterActivityFeed,
   pathKey,
+  providerPreset,
   resolveConfig,
   STAGE,
+  type ActivityTimeRange,
+  type SourceId,
   withArchived,
 } from "@ai-dashboard/core/node";
 import { decodePath } from "./pathParam.js";
@@ -392,10 +396,21 @@ export function createApp(deps: ServerDeps): Hono {
   api.get("/settings", (c) => c.json(deps.store.getSettings()));
   api.put("/settings", async (c) => {
     const body = (await c.req.json().catch(() => ({}))) ?? {};
-    if (body.provider !== undefined && body.provider !== "zhipu") {
-      return c.json({ error: "当前只支持 zhipu provider，其他 provider 尚未实现" }, 400);
+    if (body.provider !== undefined) {
+      const preset = providerPreset(body.provider);
+      if (!preset) return c.json({ error: "未知模型提供商预设" }, 400);
+      if (preset.protocol !== "openai-chat-completions") {
+        return c.json({ error: "Anthropic 使用不同的 Messages 协议，当前仅支持 OpenAI 兼容接口" }, 400);
+      }
+      if (body.provider !== "zhipu" && !body.requestUrl && !body.apiKey) {
+        return c.json({ error: "请填写 OpenAI 兼容接口请求地址和 API Key" }, 400);
+      }
     }
-    deps.store.setSettings(body);
+    try {
+      deps.store.setSettings(body);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : "设置保存失败" }, 400);
+    }
     return c.json(deps.store.getSettings());
   });
 
@@ -419,7 +434,19 @@ export function createApp(deps: ServerDeps): Hono {
     await ensureLoaded();
     // Archived projects are hidden from the timeline too (R3 decision ④).
     const live = state.projects.filter((p) => !p.archivedAtMs);
-    return c.json({ items: buildActivityFeed(live), generatedAtMs: state.generatedAtMs });
+    const validSources = new Set<SourceId>(["claude-code", "codex", "git"]);
+    const sources = (c.req.query("sources") ?? "")
+      .split(",")
+      .map((source) => source.trim())
+      .filter((source): source is SourceId => validSources.has(source as SourceId));
+    const rawRange = c.req.query("range");
+    const range: ActivityTimeRange =
+      rawRange === "today" || rawRange === "7d" ? rawRange : "all";
+    const items = filterActivityFeed(
+      buildActivityFeed(live),
+      { sources, project: c.req.query("project") ?? "", range },
+    );
+    return c.json({ items, generatedAtMs: state.generatedAtMs });
   });
 
   app.route("/api", api);

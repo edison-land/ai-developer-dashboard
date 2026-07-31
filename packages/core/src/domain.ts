@@ -75,8 +75,88 @@ export interface StatusSnapshot {
 }
 
 // ── Synthesis ──────────────────────────────────────────────────────────────
-/** Which AI provider backs synthesis. Zhipu is the default (OpenAI-compatible BigModel API). */
-export type ProviderId = "zhipu" | "anthropic" | "openai";
+/** Which preset backs synthesis. Presets use the OpenAI Chat Completions shape. */
+export type ProviderId =
+  | "zhipu"
+  | "openai"
+  | "deepseek"
+  | "kimi"
+  | "siliconflow"
+  | "openrouter"
+  /** Retained for old cached results, but not treated as OpenAI-compatible. */
+  | "anthropic"
+  | "custom";
+
+export interface ProviderPreset {
+  id: ProviderId;
+  label: string;
+  requestUrl: string;
+  recommendedModel: string;
+  protocol: "openai-chat-completions" | "anthropic-messages";
+}
+
+export const PROVIDER_PRESETS: ProviderPreset[] = [
+  {
+    id: "zhipu",
+    label: "智谱 AI",
+    requestUrl: "https://open.bigmodel.cn/api/paas/v4/",
+    recommendedModel: "glm-4-flash-250414",
+    protocol: "openai-chat-completions",
+  },
+  {
+    id: "openai",
+    label: "OpenAI GPT",
+    requestUrl: "https://api.openai.com/v1/",
+    recommendedModel: "gpt-4o-mini",
+    protocol: "openai-chat-completions",
+  },
+  {
+    id: "deepseek",
+    label: "DeepSeek",
+    requestUrl: "https://api.deepseek.com/",
+    recommendedModel: "deepseek-chat",
+    protocol: "openai-chat-completions",
+  },
+  {
+    id: "kimi",
+    label: "月之暗面 / Kimi",
+    requestUrl: "https://api.moonshot.cn/v1/",
+    recommendedModel: "moonshot-v1-8k",
+    protocol: "openai-chat-completions",
+  },
+  {
+    id: "siliconflow",
+    label: "硅基流动",
+    requestUrl: "https://api.siliconflow.cn/v1/",
+    recommendedModel: "Qwen/Qwen2.5-7B-Instruct",
+    protocol: "openai-chat-completions",
+  },
+  {
+    id: "openrouter",
+    label: "OpenRouter",
+    requestUrl: "https://openrouter.ai/api/v1/",
+    recommendedModel: "openai/gpt-4o-mini",
+    protocol: "openai-chat-completions",
+  },
+  {
+    id: "custom",
+    label: "自定义 OpenAI 兼容接口",
+    requestUrl: "",
+    recommendedModel: "",
+    protocol: "openai-chat-completions",
+  },
+  {
+    id: "anthropic",
+    label: "Anthropic Claude（协议暂不支持）",
+    requestUrl: "https://api.anthropic.com/v1/",
+    recommendedModel: "",
+    protocol: "anthropic-messages",
+  },
+];
+
+export function providerPreset(id: ProviderId): ProviderPreset | undefined {
+  return PROVIDER_PRESETS.find((preset) => preset.id === id);
+}
 export const ATTENTION_KIND = ["user-action", "waiting", "none", "unknown"] as const;
 export type AttentionKind = (typeof ATTENTION_KIND)[number];
 
@@ -159,7 +239,11 @@ export interface ActivityItem {
 // ── Settings (public shape — never contains raw API keys) ──────────────────
 export interface Settings {
   provider: ProviderId;
+  /** OpenAI-compatible Chat Completions request base URL. */
+  requestUrl: string;
   model: string;
+  /** Public boolean only; the raw key is never returned by the API. */
+  hasApiKey: boolean;
   hasAnthropicKey: boolean;
   hasOpenAIKey: boolean;
   hasZhipuKey: boolean;
@@ -169,7 +253,9 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   provider: "zhipu",
+  requestUrl: "https://open.bigmodel.cn/api/paas/v4/",
   model: "glm-4-flash-250414",
+  hasApiKey: false,
   hasAnthropicKey: false,
   hasOpenAIKey: false,
   hasZhipuKey: false,
@@ -206,7 +292,14 @@ export interface Store {
   clearFocusPreference(canonicalPath: string): void;
   getSettings(): Settings;
   /** Patch settings. Key values are stored internally; never returned raw by the API. */
-  setSettings(patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string; zhipuApiKey?: string }): void;
+  setSettings(
+    patch: Partial<Settings> & {
+      apiKey?: string;
+      anthropicApiKey?: string;
+      openaiApiKey?: string;
+      zhipuApiKey?: string;
+    },
+  ): void;
   getApiKey(provider: ProviderId): string | undefined;
 }
 

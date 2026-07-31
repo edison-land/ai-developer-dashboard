@@ -18,7 +18,6 @@ describe("ProjectsView workflow", () => {
             project("Gamma", { sources: ["git"] }),
           ]}
           onOpenProject={vi.fn()}
-          onOpenArchive={vi.fn()}
         />
       </QueryClientProvider>,
     );

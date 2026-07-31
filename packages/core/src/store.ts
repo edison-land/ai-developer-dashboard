@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   DEFAULT_SETTINGS,
+  providerPreset,
+  PROVIDER_PRESETS,
   type FocusPreferences,
   type ProviderId,
   type Settings,
@@ -52,6 +54,7 @@ const MIGRATIONS = [
 
 const SETTING_FIELDS = [
   ["provider", "provider"],
+  ["requestUrl", "request_url"],
   ["model", "model"],
   ["autoRefreshMins", "auto_refresh_mins"],
   ["synthOnRefresh", "synth_on_refresh"],
@@ -273,10 +276,20 @@ export class SqliteStore implements Store {
   getSettings(): Settings {
     const rows = this.stmts.allSettings.all() as { key: string; value: string }[];
     const map = new Map(rows.map((r) => [r.key, r.value]));
-    const storedProvider = map.get("provider");
+    const storedProvider = map.get("provider") as Settings["provider"] | undefined;
+    const provider =
+      storedProvider && PROVIDER_PRESETS.some((preset) => preset.id === storedProvider)
+        ? storedProvider
+        : DEFAULT_SETTINGS.provider;
+    const preset = providerPreset(provider);
+    const requestUrl = map.get("request_url") ?? preset?.requestUrl ?? DEFAULT_SETTINGS.requestUrl;
+    const model =
+      map.get("model") ?? preset?.recommendedModel ?? DEFAULT_SETTINGS.model;
     return {
-      provider: storedProvider === "zhipu" ? "zhipu" : DEFAULT_SETTINGS.provider,
-      model: map.get("model") || DEFAULT_SETTINGS.model,
+      provider,
+      requestUrl,
+      model,
+      hasApiKey: Boolean(this.getApiKey(provider)),
       hasAnthropicKey: Boolean(map.get("anthropic_api_key")),
       hasOpenAIKey: Boolean(map.get("openai_api_key")),
       hasZhipuKey: Boolean(map.get("zhipu_api_key")),
@@ -285,9 +298,26 @@ export class SqliteStore implements Store {
     };
   }
 
-  setSettings(patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string; zhipuApiKey?: string }): void {
-    if (patch.provider !== undefined && patch.provider !== "zhipu") {
-      throw new Error("当前只支持 zhipu provider，其他 provider 尚未实现");
+  setSettings(
+    patch: Partial<Settings> & {
+      apiKey?: string;
+      anthropicApiKey?: string;
+      openaiApiKey?: string;
+      zhipuApiKey?: string;
+    },
+  ): void {
+    if (patch.provider !== undefined && !providerPreset(patch.provider)) {
+      throw new Error("未知模型提供商预设");
+    }
+    // Keep the old guard meaningful for callers that only ask to switch to an
+    // unconfigured provider. The Settings page always sends its editable URL.
+    if (
+      patch.provider !== undefined &&
+      patch.provider !== "zhipu" &&
+      patch.requestUrl === undefined &&
+      !this.stmts.getSetting.get("request_url")
+    ) {
+      throw new Error("当前只支持 zhipu 的旧配置格式；请同时填写 OpenAI 兼容接口请求地址");
     }
     for (const [field, storageKey] of SETTING_FIELDS) {
       const value = patch[field];
@@ -304,11 +334,19 @@ export class SqliteStore implements Store {
     if (patch.zhipuApiKey !== undefined) {
       this.stmts.upsertSetting.run("zhipu_api_key", patch.zhipuApiKey);
     }
+    if (patch.apiKey !== undefined) {
+      const provider = patch.provider ?? this.getSettings().provider;
+      this.stmts.upsertSetting.run(`${provider}_api_key`, patch.apiKey);
+    }
   }
 
   getApiKey(provider: ProviderId): string | undefined {
     const key =
-      provider === "zhipu" ? "zhipu_api_key" : provider === "anthropic" ? "anthropic_api_key" : "openai_api_key";
+      provider === "zhipu"
+        ? "zhipu_api_key"
+        : provider === "anthropic"
+          ? "anthropic_api_key"
+          : `${provider}_api_key`;
     const row = this.stmts.getSetting.get(key) as { value: string } | undefined;
     const v = row?.value;
     return v && v.length > 0 ? v : undefined;

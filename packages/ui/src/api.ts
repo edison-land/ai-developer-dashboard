@@ -1,8 +1,10 @@
 import type {
+  ActivityTimeRange,
   ActivityItem,
   FocusPreferences,
   Settings,
   Stage,
+  SourceId,
   SynthOutcome,
   UnifiedProject,
 } from "@ai-dashboard/core";
@@ -23,6 +25,11 @@ export interface RefreshSynthesisSummary {
 export interface ActivityResponse {
   items: ActivityItem[];
   generatedAtMs: number;
+}
+export interface ActivityFilters {
+  sources?: SourceId[];
+  project?: string;
+  range?: ActivityTimeRange;
 }
 export interface SynthesizeAllResponse {
   total: number;
@@ -302,7 +309,12 @@ export const api = {
   },
   getSettings: (): Promise<Settings> => request<Settings>("/api/settings"),
   putSettings: (
-    patch: Partial<Settings> & { anthropicApiKey?: string; openaiApiKey?: string; zhipuApiKey?: string },
+    patch: Partial<Settings> & {
+      apiKey?: string;
+      anthropicApiKey?: string;
+      openaiApiKey?: string;
+      zhipuApiKey?: string;
+    },
   ): Promise<Settings> =>
     request<Settings>("/api/settings", {
       method: "PUT",
@@ -312,7 +324,14 @@ export const api = {
   synthesize: (canonical: string): Promise<{ project: UnifiedProject; outcome: SynthOutcome }> =>
     request(`/api/projects/${encodePath(canonical)}/synthesize`, { method: "POST" }),
   synthesizeAll,
-  activity: (): Promise<ActivityResponse> => request<ActivityResponse>("/api/activity"),
+  activity: (filters: ActivityFilters = {}): Promise<ActivityResponse> => {
+    const params = new URLSearchParams();
+    if (filters.sources?.length) params.set("sources", filters.sources.join(","));
+    if (filters.project?.trim()) params.set("project", filters.project.trim());
+    if (filters.range && filters.range !== "all") params.set("range", filters.range);
+    const query = params.toString();
+    return request<ActivityResponse>(`/api/activity${query ? `?${query}` : ""}`);
+  },
   focusPreferences: (localDate: string): Promise<FocusPreferences> =>
     request<FocusPreferences>(
       `/api/focus-preferences?localDate=${encodeURIComponent(localDate)}`,

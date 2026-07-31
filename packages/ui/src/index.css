@@ -290,6 +290,23 @@ button:disabled {
   border-color: transparent;
 }
 
+.focus-card-controls {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(3px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.group:hover .focus-card-controls,
+.group:focus-within .focus-card-controls,
+.focus-card-controls.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
 .filter-option {
   display: inline-flex;
   min-height: 28px;
@@ -320,6 +337,11 @@ button:disabled {
   border-color: var(--border);
   background: var(--surface-elevated);
   box-shadow: var(--shadow-soft);
+}
+
+.stage-drop-active {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .stage-board {

@@ -27,12 +27,12 @@ describe("settings startup and provider guard", () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it("shows future providers but prevents selecting them and saves the refresh switch", async () => {
+  it("keeps incompatible protocols disabled and saves the refresh switch", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     render(<ThemeProvider><QueryClientProvider client={client}><SettingsView /></QueryClientProvider></ThemeProvider>);
     await screen.findByDisplayValue("qa-model");
     expect(screen.getByRole("option", { name: /Anthropic Claude/ })).toBeDisabled();
-    expect(screen.getByRole("option", { name: /OpenAI GPT/ })).toBeDisabled();
+    expect(screen.getByRole("option", { name: /OpenAI GPT/ })).not.toBeDisabled();
 
     fireEvent.click(screen.getByRole("checkbox", { name: "刷新时一并更新 AI 总结" }));
     fireEvent.click(screen.getByRole("button", { name: "保存设置" }));

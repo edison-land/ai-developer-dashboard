@@ -1,5 +1,4 @@
-import OpenAI from "openai";
-import type { SynthOpts, SynthProvider, TokenUsage } from "@ai-dashboard/core";
+import { OpenAICompatibleProvider } from "./openaiCompatible.js";
 
 /**
  * Zhipu (智谱) BigModel provider. The BigModel chat-completions API is
@@ -20,43 +19,13 @@ export interface ZhipuProviderOpts {
   defaultModel?: string;
 }
 
-export class ZhipuProvider implements SynthProvider {
-  readonly id = "zhipu" as const;
-  private readonly client: OpenAI;
-  private readonly defaultModel: string;
-
+export class ZhipuProvider extends OpenAICompatibleProvider {
   constructor(opts: ZhipuProviderOpts) {
-    this.client = new OpenAI({ apiKey: opts.apiKey, baseURL: ZHIPU_BASE_URL });
-    this.defaultModel = opts.defaultModel ?? "glm-4-flash-250414";
-  }
-
-  async run(
-    systemPrompt: string,
-    userPrompt: string,
-    opts: SynthOpts,
-  ): Promise<{ json: unknown; usage: TokenUsage; model: string }> {
-    const model = opts.model ?? this.defaultModel;
-    const res = await this.client.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0,
-      max_tokens: 1024,
+    super({
+      id: "zhipu",
+      apiKey: opts.apiKey,
+      requestUrl: ZHIPU_BASE_URL,
+      defaultModel: opts.defaultModel ?? "glm-4-flash-250414",
     });
-
-    const content = res.choices[0]?.message?.content ?? "";
-    const u = res.usage;
-    const cached = (u as { prompt_tokens_details?: { cached_tokens?: number } } | undefined | null)?.prompt_tokens_details?.cached_tokens;
-    return {
-      json: content, // raw text; parseSynthJson extracts + validates the JSON object
-      model: res.model ?? model,
-      usage: {
-        input: u?.prompt_tokens ?? 0,
-        output: u?.completion_tokens ?? 0,
-        cachedRead: typeof cached === "number" ? cached : undefined,
-      },
-    };
   }
 }

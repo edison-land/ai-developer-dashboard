@@ -121,6 +121,26 @@ describe("selectTodayFocus", () => {
     expect(result.map((item) => item.project.name)).toEqual(["Action", "Recent", "Waiting"]);
   });
 
+  it("lets a recently active ordinary project outrank long-inactive work", () => {
+    const result = selectTodayFocus(
+      [
+        project("D:/Inactive", {
+          recencyBucket: "stale",
+          lastActiveMs: NOW - 30 * 24 * 60 * 60 * 1000,
+          stage: "building",
+        }),
+        project("D:/Recent", {
+          recencyBucket: "today",
+          lastActiveMs: NOW - 60_000,
+          stage: "idea",
+        }),
+      ],
+      preferences(),
+      NOW,
+    );
+    expect(result.map((item) => item.project.name)).toEqual(["Recent", "Inactive"]);
+  });
+
   it("uses waiting projects only as a final fallback", () => {
     const result = selectTodayFocus(
       [project("D:/Waiting", { synth: synth("waiting") })],

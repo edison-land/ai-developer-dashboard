@@ -17,14 +17,12 @@ export function ProjectToolbar({
   viewMode,
   onViewModeChange,
   resultCount,
-  onOpenArchive,
 }: {
   filter: ProjectFilter;
   onFilterChange: (filter: ProjectFilter) => void;
   viewMode: ProjectViewMode;
   onViewModeChange: (view: ProjectViewMode) => void;
   resultCount: number;
-  onOpenArchive: () => void;
 }) {
   const toggleSource = (source: SourceId) => {
     const active = filter.sources.includes(source);
@@ -148,9 +146,7 @@ export function ProjectToolbar({
 
       <span className="px-1 text-xs ui-faint">{resultCount} 个项目</span>
 
-      <button type="button" className="ui-icon-button ml-auto" onClick={onOpenArchive} title="查看归档" aria-label="查看归档">
-        <Icon name="archive" size={16} />
-      </button>
+      <span className="ml-auto" />
     </div>
   );
 }

@@ -7,15 +7,17 @@ import {
   type SynthOutcome,
   type SynthProvider,
   type UnifiedProject,
+  providerPreset,
   synthesize as synthesizeProject,
 } from "@ai-dashboard/core/node";
 import { createApp, type ServerDeps } from "./app.js";
 import { NodeTailReader } from "./synth/tailReader.js";
+import { OpenAICompatibleProvider } from "./synth/openaiCompatible.js";
 import { ZhipuProvider } from "./synth/zhipu.js";
 
 export { createApp };
 export type { ServerDeps };
-export { NodeTailReader, ZhipuProvider };
+export { NodeTailReader, OpenAICompatibleProvider, ZhipuProvider };
 
 /**
  * Build the server's dependencies: opens our sqlite store, creates the
@@ -40,13 +42,26 @@ export function createServerDeps(opts: { config: DashboardConfig; uiDir?: string
     if (!apiKey) {
       return { ok: false, error: `尚未设置 ${settings.provider} 的 API Key（请在「设置」页填写）` };
     }
-    let provider: SynthProvider;
-    if (settings.provider === "zhipu") {
-      provider = new ZhipuProvider({ apiKey, defaultModel: settings.model });
-    } else {
-      // Anthropic/OpenAI provider impls are deferred (Phase 3 ships Zhipu only).
-      return { ok: false, error: `${settings.provider} provider 尚未实现（本期仅支持 zhipu）` };
+    const preset = providerPreset(settings.provider);
+    if (!preset || preset.protocol !== "openai-chat-completions") {
+      return {
+        ok: false,
+        error: `${settings.provider} 使用不同的 API 协议，当前仅支持 OpenAI 兼容 Chat Completions 接口`,
+      };
     }
+    const requestUrl = settings.requestUrl || preset.requestUrl;
+    if (!requestUrl) {
+      return { ok: false, error: "请先在设置中填写 OpenAI 兼容接口请求地址" };
+    }
+    const provider: SynthProvider =
+      settings.provider === "zhipu" && requestUrl === preset.requestUrl
+        ? new ZhipuProvider({ apiKey, defaultModel: settings.model })
+        : new OpenAICompatibleProvider({
+            id: settings.provider,
+            apiKey,
+            requestUrl,
+            defaultModel: settings.model,
+          });
     return synthesizeProject(project, {
       provider,
       tailReader,
