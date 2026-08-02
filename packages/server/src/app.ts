@@ -195,6 +195,10 @@ export function createApp(deps: ServerDeps): Hono {
   };
   const findProject = (canonical: string): UnifiedProject | undefined =>
     state.projects.find((p) => pathKey(p.canonicalPath) === pathKey(canonical));
+  const settingsResponse = () => {
+    const settings = deps.store.getSettings();
+    return { ...settings, apiKey: deps.store.getApiKey(settings.provider) ?? "" };
+  };
 
   const api = new Hono();
 
@@ -393,7 +397,7 @@ export function createApp(deps: ServerDeps): Hono {
     return c.json(deps.store.getFocusPreferences(body.localDate));
   });
 
-  api.get("/settings", (c) => c.json(deps.store.getSettings()));
+  api.get("/settings", (c) => c.json(settingsResponse()));
   api.put("/settings", async (c) => {
     const body = (await c.req.json().catch(() => ({}))) ?? {};
     if (body.provider !== undefined) {
@@ -411,7 +415,7 @@ export function createApp(deps: ServerDeps): Hono {
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "设置保存失败" }, 400);
     }
-    return c.json(deps.store.getSettings());
+    return c.json(settingsResponse());
   });
 
   api.post("/projects/:enc/archive", async (c) => {

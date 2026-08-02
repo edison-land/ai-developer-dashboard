@@ -1,6 +1,6 @@
 {
   "name": "@ai-dashboard/desktop",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "type": "module",
   "main": "dist/main.cjs",
@@ -25,10 +25,10 @@
   "build": {
     "appId": "com.aideveloperdashboard.desktop",
     "productName": "AI Developer Dashboard",
-    "artifactName": "AI-Developer-Dashboard-v1.1.0-setup-${arch}.${ext}",
+    "artifactName": "AI-Developer-Dashboard-v1.1.1-setup-${arch}.${ext}",
     "asar": true,
     "directories": {
-      "output": "../../dist/v1.1.0"
+      "output": "../../dist/v1.1.1"
     },
     "files": [
       "dist/main.cjs",

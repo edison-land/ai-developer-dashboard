@@ -2,7 +2,7 @@
 
 > 适用对象：项目所有者、开发者和首位外部测试者
 >
-> 当前已验证的安装包软件版本：`1.1.0`（Windows x64）
+> 当前已构建并核对身份的安装包软件版本：`1.1.1`（Windows x64）
 >
 > 本文是长期操作指南；`v1.2.0` 是“首位外部测试者交付”的里程碑号，不是当前安装包的软件版本。
 
@@ -23,7 +23,7 @@
 
 ### 首次安装
 
-1. 双击当前指定安装包：[`AI-Developer-Dashboard-v1.1.0-setup-x64.exe`](../dist/v1.1.0/AI-Developer-Dashboard-v1.1.0-setup-x64.exe)。
+1. 双击当前指定安装包：[`AI-Developer-Dashboard-v1.1.1-setup-x64.exe`](../dist/v1.1.1/AI-Developer-Dashboard-v1.1.1-setup-x64.exe)。
 2. 按安装向导完成每用户安装。
 3. 从桌面快捷方式或开始菜单中的 **AI Developer Dashboard** 打开。
 
@@ -35,6 +35,12 @@
 - 卸载默认只删除程序文件，保留个人数据；重新安装同一软件后可继续使用这些数据。
 - 第一次安装若发现旧 CLI 或 v1.0 portable 的默认数据目录 `%USERPROFILE%\.ai-dashboard`，会复制并接续数据；旧目录不会删除，并会在安装版数据目录保留 `migration-backups` 和 `manifest.json`。
 - 不要手动删除 `data` 或 `migration-backups`。如需恢复，请保留它们并按[测试者说明](versions/v1.2.0/tester-guide.md#数据恢复)联系维护者确认目标。
+
+### API Key 的显示与隐藏
+
+- API Key 仍保存在当前电脑的本地数据中。
+- 在“设置”页，已保存的**当前模型提供商** Key 会默认显示为完整文本，方便检查和修改；点击输入框右侧的眼睛按钮可切换为星号掩码。
+- 共享屏幕、截图或让他人操作电脑前，先切换为掩码；不要把 Key、完整日志、源代码或完整对话内容发送给他人。
 
 ### 启动失败时
 
@@ -107,7 +113,7 @@ pnpm typecheck
 
 ### 只发送这两项
 
-1. `AI-Developer-Dashboard-v1.1.0-setup-x64.exe`
+1. `AI-Developer-Dashboard-v1.1.1-setup-x64.exe`
 2. [首位测试者说明](versions/v1.2.0/tester-guide.md)
 
 不要发送整个源码目录、`v1.0.0` portable 文件，或名称带 `v1.1.1-test` 的内部覆盖升级测试包。
@@ -116,16 +122,16 @@ pnpm typecheck
 
 | 项目 | 正确值 |
 |---|---|
-| 文件名 | `AI-Developer-Dashboard-v1.1.0-setup-x64.exe` |
+| 文件名 | `AI-Developer-Dashboard-v1.1.1-setup-x64.exe` |
 | 架构 | Windows x64 |
-| ProductVersion | `1.1.0` |
-| 文件大小 | `100,930,950` 字节 |
-| SHA-256 | `7EBD4B2A76B8C79851889174447FBC0D71EC4AAC3E569FEE8CB4B416E9E802A8` |
+| ProductVersion | `1.1.1` |
+| 文件大小 | `100,931,570` 字节 |
+| SHA-256 | `85BC579F81C453740008D7DA21B80F7F985D941753B573A27AFC6EF8A4ABE542` |
 
 发送前，可在 PowerShell 中核对文件：
 
 ```powershell
-Get-FileHash .\AI-Developer-Dashboard-v1.1.0-setup-x64.exe -Algorithm SHA256
+Get-FileHash .\AI-Developer-Dashboard-v1.1.1-setup-x64.exe -Algorithm SHA256
 ```
 
 对方不需要会使用命令行才能安装；哈希核对是防止拿错文件的额外步骤。
@@ -140,7 +146,7 @@ Get-FileHash .\AI-Developer-Dashboard-v1.1.0-setup-x64.exe -Algorithm SHA256
 
 ### 1. 先确定要发布的软件版本
 
-本项目的文档里程碑号与安装包软件版本不同。准备新的安装包时，先确认软件版本，例如从 `1.1.0` 升至下一个已批准的版本；不要把仅表示交付阶段的 `v1.2.0` 直接写进安装包版本。
+本项目的文档里程碑号与安装包软件版本不同。准备新的安装包时，先确认软件版本，例如从 `1.1.1` 升至下一个已批准的版本；不要把仅表示交付阶段的 `v1.2.0` 直接写进安装包版本。
 
 版本号变更需要同步检查 `apps/desktop/package.json` 中的：
 
@@ -168,10 +174,10 @@ pnpm typecheck
 pnpm desktop:package
 ```
 
-当前 `1.1.0` 的输出位置是：
+当前 `1.1.1` 的输出位置是：
 
 ```text
-dist\v1.1.0\AI-Developer-Dashboard-v1.1.0-setup-x64.exe
+dist\v1.1.1\AI-Developer-Dashboard-v1.1.1-setup-x64.exe
 ```
 
 构建命令只生成 Windows x64 的 NSIS 安装包，不会自动公开发布、上传文件、签名、推送代码或替用户发送给测试者。
@@ -181,7 +187,7 @@ dist\v1.1.0\AI-Developer-Dashboard-v1.1.0-setup-x64.exe
 以新版本的真实路径替换下面的示例路径：
 
 ```powershell
-$installer = '.\dist\v1.1.0\AI-Developer-Dashboard-v1.1.0-setup-x64.exe'
+$installer = '.\dist\v1.1.1\AI-Developer-Dashboard-v1.1.1-setup-x64.exe'
 Get-Item $installer | Select-Object Name, Length
 (Get-Item $installer).VersionInfo | Select-Object ProductVersion, FileVersion
 Get-FileHash $installer -Algorithm SHA256
@@ -197,11 +203,11 @@ Get-FileHash $installer -Algorithm SHA256
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-desktop-installer.ps1 `
-  -UpgradeInstallerPath .\dist\v1.1.1-test\AI-Developer-Dashboard-v1.1.0-setup-x64.exe `
+  -UpgradeInstallerPath .\dist\v1.1.2-test\AI-Developer-Dashboard-v1.1.1-setup-x64.exe `
   -KeepArtifacts
 ```
 
-`v1.1.1-test` 只用于验证覆盖升级，绝不能发送给外部使用者。验证脚本会在 Windows 临时目录使用隔离数据；保留的证据目录只用于内部审计。
+名称带 `-test` 的安装包只用于验证覆盖升级，绝不能发送给外部使用者。验证脚本会在 Windows 临时目录使用隔离数据；保留的证据目录只用于内部审计。
 
 ### 6. 再交付给测试者
 
