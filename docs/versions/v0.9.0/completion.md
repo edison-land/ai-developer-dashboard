@@ -12,7 +12,7 @@
 - 列表视图归档支持多个项目并行操作，每个项目独立显示“归档中”，不会因第二次点击覆盖第一个项目的状态。
 - 批量总结覆盖 `X/总数`、逐项事件更新、单项失败后继续和最终统计。
 - 设置页覆盖未实现 provider 禁用和刷新时总结开关；API 层覆盖无效 JSON、字段不完整和未知事件等异常响应解析；刷新失败原因直接显示在页面。
-- 根 README、`docs/README.md`、[故障排查](../../troubleshooting.md)和[发布检查表](../../release-checklist.md)形成新用户启动、验证和排错入口。
+- 根 README、`docs/README.md`、[故障排查](troubleshooting.md)和[发布检查表](release-checklist.md)形成当时网页/CLI 阶段的新用户启动、验证和排错入口；后续桌面版资料见 [桌面版使用、调试与交付指南](../../desktop-usage-and-delivery.md)。
 
 ## 验证记录
 

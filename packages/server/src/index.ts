@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server";
+import type { AddressInfo } from "node:net";
 import {
   type DashboardConfig,
   Dashboard,
@@ -27,7 +28,9 @@ export { NodeTailReader, OpenAICompatibleProvider, ZhipuProvider };
  * effect immediately without a restart. This is the single place that knows how
  * the pieces fit together — the Electron shell (Phase 6) will reuse it directly.
  */
-export function createServerDeps(opts: { config: DashboardConfig; uiDir?: string }): ServerDeps {
+export function createServerDeps(
+  opts: { config: DashboardConfig; uiDir?: string },
+): ServerDeps & { store: SqliteStore } {
   const store = new SqliteStore(opts.config.dbPath);
   const dashboard = new Dashboard(opts.config);
   const tailReader = new NodeTailReader();
@@ -77,14 +80,80 @@ export interface StartOptions {
   hostname?: string;
 }
 
-/** Listen on the given port and warm the project cache in the background. */
-export function startServer(deps: ServerDeps, opts: StartOptions) {
+export interface RunningServer {
+  port: number;
+  url: string;
+  close: () => Promise<void>;
+}
+
+function launchDashboardServer(
+  deps: ServerDeps,
+  opts: StartOptions,
+  onListening?: (info: AddressInfo) => void,
+) {
   const app = createApp(deps);
   const hostname = opts.hostname ?? "127.0.0.1";
-  const server = serve({ fetch: app.fetch, port: opts.port, hostname });
-  // Warm the mechanical project cache without triggering optional AI synthesis.
-  void fetch(`http://${hostname}:${opts.port}/api/projects`).catch(() => {});
-  return server;
+  const server = serve(
+    { fetch: app.fetch, port: opts.port, hostname },
+    (info) => {
+      const url = `http://${hostname}:${info.port}`;
+      void fetch(`${url}/api/projects`).catch(() => {});
+      onListening?.(info);
+    },
+  );
+  return { server, hostname };
+}
+
+function closeServer(server: ReturnType<typeof serve>): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (!server.listening) {
+      resolve();
+      return;
+    }
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
+
+/** Listen on the given port and warm the project cache in the background. */
+export function startServer(deps: ServerDeps, opts: StartOptions) {
+  return launchDashboardServer(deps, opts).server;
+}
+
+/**
+ * Start the local server and wait until the operating system confirms its
+ * address. A port of 0 asks Windows to choose a free private port, which keeps
+ * desktop users out of port management entirely.
+ */
+export async function startServerReady(
+  deps: ServerDeps,
+  opts: StartOptions,
+): Promise<RunningServer> {
+  let resolveAddress!: (info: AddressInfo) => void;
+  let rejectAddress!: (error: Error) => void;
+  const addressReady = new Promise<AddressInfo>((resolve, reject) => {
+    resolveAddress = resolve;
+    rejectAddress = reject;
+  });
+  const { server, hostname } = launchDashboardServer(deps, opts, resolveAddress);
+  const onError = (error: Error) => rejectAddress(error);
+  server.once("error", onError);
+  let address: AddressInfo;
+  try {
+    address = await addressReady;
+  } catch (error) {
+    await closeServer(server).catch(() => {});
+    throw error;
+  } finally {
+    server.off("error", onError);
+  }
+  const port = address.port;
+  const url = `http://${hostname}:${port}`;
+
+  return {
+    port,
+    url,
+    close: () => closeServer(server),
+  };
 }
 
 export { resolveConfig };

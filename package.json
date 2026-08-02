@@ -7,6 +7,8 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "build:ui": "pnpm --filter @ai-dashboard/ui build",
+    "desktop:start": "pnpm --filter @ai-dashboard/desktop start",
+    "desktop:package": "pnpm --filter @ai-dashboard/desktop package:win",
     "start": "pnpm --filter @ai-dashboard/cli start",
     "dev": "pnpm --filter @ai-dashboard/cli dev",
     "test": "pnpm -r --if-present test",
@@ -22,6 +24,6 @@
     "tsx": "^4.19.1"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+    "onlyBuiltDependencies": ["better-sqlite3", "electron", "esbuild"]
   }
 }
