@@ -11,3 +11,6 @@ dist/
 # 工具产物（playwright skill 缓存 / 截图）
 .playwright-cli/
 kanban.png
+
+# Local project documentation (do not publish)
+docs/

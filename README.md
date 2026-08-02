@@ -1,163 +1,181 @@
 # AI Developer Dashboard
 
-A local-first AI developer dashboard for Claude Code, OpenAI Codex, and Git. It helps you triage AI coding projects, track project status, review recent activity, and decide what to work on next.
+面向 Claude Code、OpenAI Codex 和 Git 用户的本地优先 Windows AI 编程项目管理工具。它把分散在多个项目和编程助手里的进度汇总到一个桌面工作台，帮助你决定今天先做什么。
 
-> **中文简介：** AI Developer Dashboard 是一个运行在本机的 AI 编程项目工作台。它按项目汇总 Claude Code、OpenAI Codex 和 Git 的活动，帮助你判断今天推进什么、项目处于什么阶段，以及下一步该做什么。
+[**⬇️ 下载 Windows 桌面版**](https://github.com/DrErwin/ai-developer-dashboard/releases/latest) · [English](#english)
 
-## What problem does it solve?
+<p align="center">
+  <img src="output/xiaohongshu/ai-project-dashboard-cover-v3-generic.png" alt="AI Developer Dashboard 功能概览：今日重点、AI 总结和项目阶段" width="520">
+</p>
 
-Claude Code sessions, Codex tasks, and Git commits each record a different part of your development work. When you maintain several local projects, reconstructing progress and priorities takes time.
+## AI Developer Dashboard 是什么？
 
-AI Developer Dashboard groups those signals by project path and gives you one project triage view:
+同时使用 Claude Code、Codex 和 Git 时，你可能需要逐个打开项目，才能判断哪个项目还在运行、最近改了什么、下一步该做什么。
 
-- Which projects need attention today?
-- What stage is each project in?
-- What concrete action should come next?
+AI Developer Dashboard 读取这些工具留在本机的项目活动，把同一路径的信息合并成项目卡、阶段看板和时间线。你可以在一个桌面软件里查看项目状态、整理今日重点，并按需生成 AI 项目总结。
 
-## Key features
+## 它能做什么？
 
-| Feature | What it does |
+| 功能 | 用途 |
 |---|---|
-| Today focus | Selects up to three priority projects. You can pin, reorder, or hide a project for the day. |
-| Project management | Provides list and stage-board views with search, source filters, time filters, stage overrides, details, archive, and restore. |
-| Local signal aggregation | Merges Claude Code, OpenAI Codex, and Git activity by canonical project path. |
-| AI project summaries | Generates a stage, summary, next step, blockers, and attention state when you request it. The implemented provider is Zhipu GLM. |
-| Cost controls | Caches summaries by input hash and shows item-level progress during batch runs. |
-| Activity timeline | Combines recent actions from Claude Code, OpenAI Codex, and Git. |
-| Local preferences | Stores focus choices, stages, archives, filters, theme, and refresh settings on your computer. |
+| 今日重点 | 从多个项目中选择、排序和管理今天要推进的项目。 |
+| 项目看板 | 汇总 Claude Code、Codex 和 Git 状态，并按阶段查看项目。 |
+| 动态时间线 | 按来源、项目和时间范围筛选最近活动。 |
+| AI 项目总结 | 按需生成项目阶段、下一步、阻塞项和关注状态。 |
+| 本地管理 | 保存阶段、归档、筛选、主题、刷新频率和模型设置。 |
 
-## How it works
+普通的项目浏览和管理不需要 AI 模型。AI 总结支持智谱 GLM，以及使用 OpenAI Chat Completions 兼容接口的模型服务。
 
-```text
-Claude Code + OpenAI Codex + Git
-                 |
-         project path matching
-                 |
-       local project state store
-                 |
-      focus, projects, and activity
-                 |
-       optional AI project summary
-```
+## 三个核心视图
 
-1. Local adapters read project metadata from Claude Code, OpenAI Codex, and Git.
-2. The core package normalizes paths and merges records that belong to the same project.
-3. The local server stores dashboard state in `~/.ai-dashboard` and serves the React interface.
-4. An AI summary request builds a capped prompt from recent project context and a compact Git snapshot.
+### 🎯 今天先做什么
 
-## Privacy and AI usage
+“今天”页面从多个项目中整理出最多三项重点工作。每张卡片显示项目来源、当前阶段、当前情况和下一步，让你先处理需要关注的工作，也可以手动调整顺序或更换重点。
 
-> [!IMPORTANT]
-> Normal project collection and dashboard browsing stay on your computer. The dashboard does not upload project source files.
+<p align="center">
+  <img src="output/xiaohongshu/a2435b4e-2e29-46f3-ab5d-fb33988deb41.png" alt="今天做什么与 AI 项目总结界面" width="1000">
+</p>
 
-AI summaries require a configured model service. When you request a summary, the dashboard sends a bounded prompt that can contain:
+### ✨ AI 总结
 
-- a truncated recent instruction;
-- up to two recent Claude Code transcript turns;
-- the Git branch, latest commit subject, worktree counts, and a small sample of changed filenames.
+你可以为单个项目更新总结，也可以批量总结全部项目。AI 总结根据近期项目活动提炼当前情况、下一步、阻塞项和关注状态，并把结果放回项目卡片。相同输入会使用已有缓存，减少重复调用。
 
-The dashboard stores API keys in its local data store. The local Settings page returns and displays the current provider's saved key so that its owner can review or edit it; use the eye button to mask it before screen sharing. The key is not sent to dashboard services or included in logs. You can use project collection, filters, stages, archives, and activity views without an API key. AI summaries remain unavailable until you configure one.
+### 🗂️ 项目阶段进度面板
 
-## Quick start
+阶段面板把项目放进想法、开发中、待验证、完成、搁置或未分类。你可以搜索项目，按 Claude Code、Codex、Git 来源和活跃时间筛选，并直接调整项目阶段。
 
-### Prerequisites
+<p align="center">
+  <img src="output/xiaohongshu/5ecd04f6-968f-4aba-9783-0350aeb4a0c2.png" alt="Claude Code、Codex 和 Git 项目阶段进度面板" width="1000">
+</p>
 
-- [Node.js](https://nodejs.org/) 20 or newer
-- [pnpm](https://pnpm.io/) 10
-- Git
+## 下载、安装和打开
 
-Claude Code and OpenAI Codex are optional data sources. The dashboard still starts when one source is absent.
-
-### Install and run
-
-```bash
-git clone https://github.com/DrErwin/ai-developer-dashboard.git
-cd ai-developer-dashboard
-pnpm install
-pnpm build:ui
-pnpm start
-```
-
-The command starts the local service and opens the dashboard in your browser.
-
-### Development
-
-Run the server and UI in separate terminals:
-
-```bash
-pnpm --filter @ai-dashboard/cli dev
-pnpm --filter @ai-dashboard/ui dev
-```
-
-- Local server: `http://127.0.0.1:7777`
-- Vite development UI: `http://127.0.0.1:5173`
-
-To debug the desktop application directly from source, run `pnpm desktop:start`. See the [desktop usage, debugging, and delivery guide](docs/desktop-usage-and-delivery.md) for the normal desktop workflow and installer build steps.
-
-## Current status
+1. 打开 [GitHub Releases 最新版页面](https://github.com/DrErwin/ai-developer-dashboard/releases/latest)。
+2. 在 **Assets** 中下载适用于 Windows x64 的 `.exe` 安装包。
+3. 双击安装包，按提示完成安装。
+4. 从桌面快捷方式或开始菜单打开 **AI Developer Dashboard**。
 
 > [!NOTE]
-> The local web MVP and the Windows desktop application are ready for project-owner use. The first external tester delivery milestone is internally prepared and still awaiting real external acceptance.
+> 普通用户不需要安装开发环境，也不需要使用终端、CLI、浏览器地址或端口。当前公开安装包支持 Windows x64。
 
-| Area | Status |
+## 它如何整理项目？
+
+软件读取本机的 Claude Code 与 Codex 活动记录，并结合各项目的 Git 分支、提交和工作区状态。相同路径的记录会合并到同一张项目卡。
+
+你可以手动调整项目阶段、今日重点和归档状态。刷新功能更新本机项目状态；只有你主动请求 AI 总结时，软件才会调用你配置的模型服务。
+
+## 🔒 本地数据、API Key 和 AI 总结
+
+软件把项目状态、偏好设置和 API Key 保存在你的电脑上。安装、升级、卸载和重装不会主动删除这些个人数据。
+
+软件不会把项目源文件上传到本项目的服务器。你请求 AI 总结时，它会把有限的项目上下文发送给你配置的模型服务，其中可能包括截断后的项目说明、近期对话片段、Git 分支与提交信息、工作区变更数量和少量文件名。
+
+设置页会显示当前模型提供商已保存的 API Key，方便你检查或修改。输入框旁的眼睛按钮可以把 Key 切换为星号。分享屏幕或反馈问题前，请先隐藏 Key。
+
+## ❓ 常见问题
+
+### 这是 Claude Code 和 Codex 的项目看板吗？
+
+是。它把 Claude Code、OpenAI Codex 和 Git 的本机项目活动汇总到同一个 Windows 桌面看板中。
+
+### 不配置 API Key 可以使用吗？
+
+可以。项目列表、今日重点、阶段、动态、归档和本地设置都能使用。只有 AI 项目总结需要模型服务和 API Key。
+
+### 软件会上传我的源代码吗？
+
+软件不会上传项目源文件。你主动请求 AI 总结时，有限的项目上下文会发送给你选择的模型服务，具体范围见上方的数据说明。
+
+### 数据保存在哪里？
+
+桌面版把个人数据保存在当前 Windows 用户的应用数据目录中，不放在软件安装目录。卸载软件时默认保留这些数据。
+
+### 如何获得新版本？
+
+前往 [Latest Release](https://github.com/DrErwin/ai-developer-dashboard/releases/latest) 下载新的 Windows 安装包。项目目前不提供自动更新。
+
+---
+
+## English
+
+AI Developer Dashboard is a local-first Windows project management tool for developers who use Claude Code, OpenAI Codex, and Git. It brings activity from multiple projects and coding agents into one desktop workspace so you can decide what to work on today.
+
+[**⬇️ Download the Windows desktop app**](https://github.com/DrErwin/ai-developer-dashboard/releases/latest) · [中文](#ai-developer-dashboard)
+
+## What is AI Developer Dashboard?
+
+Claude Code, Codex, and Git keep useful project signals in different places. Checking each project takes time when you need to find active work, recent changes, blockers, or the next step.
+
+AI Developer Dashboard reads local activity from these tools and merges records that point to the same project path. It presents the result as project cards, a stage board, and an activity timeline. You can manage today's priorities and request an AI project summary from the same desktop app.
+
+## What can it do?
+
+| Feature | Purpose |
 |---|---|
-| Local web dashboard | Available |
-| Claude Code, OpenAI Codex, and Git aggregation | Available |
-| AI summaries through Zhipu GLM | Available after API key setup |
-| Generic OpenAI-compatible provider settings | Available |
-| Windows desktop application | Available; first external tester acceptance is pending |
+| Today focus | Select, order, and manage the projects you want to move forward today. |
+| Project board | Combine Claude Code, Codex, and Git status and view projects by stage. |
+| Activity timeline | Filter recent activity by source, project, and time range. |
+| AI project summaries | Generate a project stage, next step, blockers, and attention state on demand. |
+| Local management | Store stages, archives, filters, theme, refresh interval, and model settings. |
 
-See the [versioned documentation](docs/README.md) for completed milestones, planned work, and known gaps.
+Project browsing and management work without an AI model. AI summaries support Zhipu GLM and model services with an OpenAI Chat Completions-compatible endpoint.
 
-## FAQ
+## Three core views
 
-### What is AI Developer Dashboard?
+### 🎯 Decide what to work on today
 
-AI Developer Dashboard is a local-first project triage tool for developers who work across several AI coding projects. It combines Claude Code, OpenAI Codex, and Git signals in one browser-based dashboard.
+The Today page selects up to three focus projects from your workspace. Each card shows its sources, stage, current situation, and next step. You can reorder the cards or replace a focus project when your priorities change.
 
-### Does it upload source code?
+### ✨ AI project summaries
 
-No. Project collection reads local metadata and does not upload source files. An AI summary sends the bounded context listed in [Privacy and AI usage](#privacy-and-ai-usage) to the model service you configure.
+You can refresh one project summary or summarize all projects in a batch. The model turns recent project activity into a current situation, next step, blockers, and attention state, then returns the result to the project card. The app reuses cached results when the summary input has not changed.
 
-### Which AI coding tools does it support?
+### 🗂️ Project stage progress board
 
-The dashboard reads local project activity from Claude Code and OpenAI Codex, then combines it with Git repository state. It supports Zhipu GLM and the configured OpenAI-compatible provider presets.
+The stage board groups projects into Idea, In Development, To Verify, Complete, Shelved, or Unclassified. You can search projects, filter them by Claude Code, Codex, Git source and activity period, and change a project's stage from the board.
 
-### Can it run without an AI model?
+## Download, install, and open the app
 
-Yes. You can collect and browse projects, manage stages and archives, use filters, and review activity without an API key. AI-generated summaries require a configured model.
+1. Open the [latest GitHub Release](https://github.com/DrErwin/ai-developer-dashboard/releases/latest).
+2. Under **Assets**, download the `.exe` installer for Windows x64.
+3. Run the installer and follow its prompts.
+4. Open **AI Developer Dashboard** from the desktop shortcut or Start menu.
 
-## Verification
+> [!NOTE]
+> You do not need a development environment, terminal, CLI command, browser address, or port for normal use. The current public package supports Windows x64.
 
-Run the release verification entry point:
+## How does it organize projects?
 
-```bash
-pnpm verify:ui-redesign
-```
+The app reads local Claude Code and Codex activity and combines it with Git branch, commit, and worktree status. Records with the same project path become one project card.
 
-It runs workspace type checks, automated tests, and the production UI build.
+You control project stages, today's focus, and archives. Refreshing updates local project state. The app contacts your configured model service only when you request an AI summary.
 
-Two focused checks are also available:
+## 🔒 Local data, API Keys, and AI summaries
 
-```bash
-pnpm smoke:synth       # Call the model configured on this computer
-pnpm qa:live-progress  # Run the batch-progress demo without a model call
-```
+The app stores project state, preferences, and API Keys on your computer. Installing, upgrading, uninstalling, or reinstalling the app does not delete this personal data by default.
 
-## Project structure
+The app does not upload project source files to a server operated by this project. When you request an AI summary, it sends limited project context to the model service you configured. That context may include truncated project instructions, recent conversation excerpts, Git branch and commit details, worktree change counts, and a small set of filenames.
 
-```text
-packages/core    Project data, path merging, focus rules, AI summary orchestration, and local storage
-packages/server  Local HTTP API, model integration, and static UI hosting
-packages/ui      React dashboard
-apps/cli         Local service launcher and browser entry point
-scripts          Release verification and focused smoke checks
-docs             Product requirements, milestone status, and design records
-```
+The Settings page displays the saved API Key for the current model provider so you can inspect or edit it. Use the eye button beside the field to replace the Key with asterisks before screen sharing or sending feedback.
 
-## Documentation
+## ❓ Frequently asked questions
 
-- [Versioned documentation](docs/README.md): requirements, completion status, and the next milestone.
-- [Market research](docs/market-research.md): the AI coding multi-session, agent dashboard, orchestration, and agentic IDE landscape as of July 31, 2026.
-- [v0.9.0 troubleshooting](docs/versions/v0.9.0/troubleshooting.md): historical web/CLI startup, data-source, database, and model failures.
-- [v0.9.0 release checklist](docs/versions/v0.9.0/release-checklist.md): historical web/CLI automated, live-model, and visual review checks.
+### Is this a project dashboard for Claude Code and Codex?
+
+Yes. It combines local activity from Claude Code, OpenAI Codex, and Git in one Windows desktop dashboard.
+
+### Can I use it without an API Key?
+
+Yes. The project list, Today focus, stages, activity, archives, and local settings work without a model. Only AI project summaries require a model service and API Key.
+
+### Does it upload my source code?
+
+The app does not upload project source files. When you request an AI summary, it sends limited project context to your chosen model service as described above.
+
+### Where does it store my data?
+
+The desktop app stores personal data under the current Windows user's application data directory, outside the installation folder. The uninstaller keeps this data by default.
+
+### Where can I get a new version?
+
+Download new Windows installers from the [Latest Release](https://github.com/DrErwin/ai-developer-dashboard/releases/latest). The app does not provide automatic updates at this stage.
