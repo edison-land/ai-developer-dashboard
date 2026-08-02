@@ -56,7 +56,7 @@ AI summaries require a configured model service. When you request a summary, the
 - up to two recent Claude Code transcript turns;
 - the Git branch, latest commit subject, worktree counts, and a small sample of changed filenames.
 
-The dashboard stores API keys in its local data store and does not return them through the settings API. You can use project collection, filters, stages, archives, and activity views without an API key. AI summaries remain unavailable until you configure one.
+The dashboard stores API keys in its local data store. The local Settings page returns and displays the current provider's saved key so that its owner can review or edit it; use the eye button to mask it before screen sharing. The key is not sent to dashboard services or included in logs. You can use project collection, filters, stages, archives, and activity views without an API key. AI summaries remain unavailable until you configure one.
 
 ## Quick start
 
@@ -92,18 +92,20 @@ pnpm --filter @ai-dashboard/ui dev
 - Local server: `http://127.0.0.1:7777`
 - Vite development UI: `http://127.0.0.1:5173`
 
+To debug the desktop application directly from source, run `pnpm desktop:start`. See the [desktop usage, debugging, and delivery guide](docs/desktop-usage-and-delivery.md) for the normal desktop workflow and installer build steps.
+
 ## Current status
 
 > [!NOTE]
-> The local web MVP is ready for ongoing use. The project does not provide an Electron desktop installer yet.
+> The local web MVP and the Windows desktop application are ready for project-owner use. The first external tester delivery milestone is internally prepared and still awaiting real external acceptance.
 
 | Area | Status |
 |---|---|
 | Local web dashboard | Available |
 | Claude Code, OpenAI Codex, and Git aggregation | Available |
 | AI summaries through Zhipu GLM | Available after API key setup |
-| Generic OpenAI-compatible provider settings | Planned for v0.9.1 |
-| Electron desktop application | Deferred |
+| Generic OpenAI-compatible provider settings | Available |
+| Windows desktop application | Available; first external tester acceptance is pending |
 
 See the [versioned documentation](docs/README.md) for completed milestones, planned work, and known gaps.
 
@@ -119,7 +121,7 @@ No. Project collection reads local metadata and does not upload source files. An
 
 ### Which AI coding tools does it support?
 
-The dashboard reads local project activity from Claude Code and OpenAI Codex, then combines it with Git repository state. Zhipu GLM provides the implemented AI summary service. Other model providers remain planned work.
+The dashboard reads local project activity from Claude Code and OpenAI Codex, then combines it with Git repository state. It supports Zhipu GLM and the configured OpenAI-compatible provider presets.
 
 ### Can it run without an AI model?
 

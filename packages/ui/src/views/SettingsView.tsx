@@ -25,14 +25,10 @@ export function SettingsView() {
     setProvider(data.provider);
     setRequestUrl(data.requestUrl || providerPreset(data.provider)?.requestUrl || "");
     setModel(data.model || providerPreset(data.provider)?.recommendedModel || "");
+    setApiKey(data.apiKey);
     setAutoRefreshMins(data.autoRefreshMins);
     setSynthOnRefresh(data.synthOnRefresh);
   }, [data]);
-
-  useEffect(() => {
-    if (!save.data) return;
-    setApiKey("");
-  }, [save.data]);
 
   const dirty =
     !!data &&
@@ -41,7 +37,7 @@ export function SettingsView() {
       model !== data.model ||
       autoRefreshMins !== data.autoRefreshMins ||
       synthOnRefresh !== data.synthOnRefresh ||
-      apiKey !== "");
+      apiKey !== data.apiKey);
 
   useEffect(() => {
     if (!dirty) return;
@@ -91,6 +87,7 @@ export function SettingsView() {
                 const next = event.target.value as ProviderId;
                 const preset = providerPreset(next);
                 setProvider(next);
+                setApiKey("");
                 if (!preset || preset.protocol !== "openai-chat-completions") return;
                 setRequestUrl(preset.requestUrl);
                 setModel(preset.recommendedModel);
@@ -134,15 +131,13 @@ export function SettingsView() {
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <SecretField
-            label={`${providerPreset(provider)?.label ?? "当前提供商"} API Key`}
             name="apiKey"
             value={apiKey}
             onChange={setApiKey}
-            configured={data?.hasApiKey ?? (provider === "zhipu" ? data?.hasZhipuKey : false)}
             emptyPlaceholder="粘贴 API Key（仅保存在本机）"
           />
           <div className="rounded-xl border p-3 text-xs leading-5 ui-muted ui-divider">
-            预设只会填入推荐地址和模型；地址、模型和密钥都可以自行修改。密钥不会通过设置接口回显。
+            预设只会填入推荐地址和模型；地址、模型和 API Key 都可以自行修改。已保存的 Key 会回显在本机设置页，请注意屏幕共享。
           </div>
         </div>
       </SettingsSection>
@@ -222,7 +217,7 @@ export function SettingsView() {
           <Icon name="check" size={17} className="mt-0.5 shrink-0 ui-success" />
           <p>
             数据目录为 <code className="font-mono text-xs ui-text">~/.ai-dashboard/</code>。
-            API Key 不会通过接口回显，网页也不会把会话内容上传到看板服务之外。
+            API Key 会回显在本机设置页；网页不会把会话内容上传到看板服务之外。
           </p>
         </div>
       </SettingsSection>
@@ -275,33 +270,48 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function SecretField({
-  label,
   name,
   value,
   onChange,
-  configured,
   emptyPlaceholder,
 }: {
-  label: string;
   name: string;
   value: string;
   onChange: (value: string) => void;
-  configured?: boolean;
   emptyPlaceholder: string;
 }) {
+  const [visible, setVisible] = useState(true);
+  const labelId = `${name}-label`;
+  const toggleLabel = visible ? "隐藏 API Key" : "显示 API Key";
+
   return (
-    <Field label={`${label}${configured ? "（已设置）" : ""}`}>
-      <input
-        type="password"
-        name={name}
-        autoComplete="off"
-        spellCheck={false}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={configured ? "留空则不修改" : emptyPlaceholder}
-        className="ui-input"
-      />
-    </Field>
+    <div className="block">
+      <label id={labelId} htmlFor={name} className="mb-1.5 block text-xs font-semibold ui-muted">
+        API Key
+      </label>
+      <div className="relative">
+        <input
+          id={name}
+          type={visible ? "text" : "password"}
+          name={name}
+          autoComplete="off"
+          spellCheck={false}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={emptyPlaceholder}
+          className="ui-input pr-10"
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((current) => !current)}
+          aria-label={toggleLabel}
+          title={toggleLabel}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 ui-muted hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        >
+          <Icon name={visible ? "eye-off" : "eye"} size={18} />
+        </button>
+      </div>
+    </div>
   );
 }
 

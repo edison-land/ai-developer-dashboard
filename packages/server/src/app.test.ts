@@ -122,8 +122,9 @@ describe("createApp", () => {
     expect(store.getSettings().provider).toBe("zhipu");
   });
 
-  it("PUT /api/settings stores the supported provider and never echoes the raw key", async () => {
-    const res = await createApp(deps()).request("/api/settings", {
+  it("PUT and GET /api/settings return the saved key for the current provider", async () => {
+    const app = createApp(deps());
+    const res = await app.request("/api/settings", {
       method: "PUT",
       body: JSON.stringify({ provider: "zhipu", zhipuApiKey: "sk-secret" }),
       headers: { "content-type": "application/json" },
@@ -132,11 +133,14 @@ describe("createApp", () => {
     const body = (await res.json()) as any;
     expect(body.provider).toBe("zhipu");
     expect(body.hasZhipuKey).toBe(true);
-    expect(body.zhipuApiKey).toBeUndefined();
-    expect(JSON.stringify(body)).not.toContain("sk-secret");
+    expect(body.apiKey).toBe("sk-secret");
+
+    const get = await app.request("/api/settings");
+    expect(get.status).toBe(200);
+    expect((await get.json() as any).apiKey).toBe("sk-secret");
   });
 
-  it("PUT /api/settings accepts any OpenAI-compatible preset and keeps only a configured flag public", async () => {
+  it("PUT /api/settings returns the saved key for an OpenAI-compatible preset", async () => {
     const res = await createApp(deps()).request("/api/settings", {
       method: "PUT",
       body: JSON.stringify({
@@ -150,8 +154,7 @@ describe("createApp", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body).toMatchObject({ provider: "deepseek", requestUrl: "https://api.deepseek.com/v1/", hasApiKey: true });
-    expect(body.apiKey).toBeUndefined();
-    expect(JSON.stringify(body)).not.toContain("deep-secret");
+    expect(body.apiKey).toBe("deep-secret");
     expect(store.getApiKey("deepseek")).toBe("deep-secret");
   });
 

@@ -131,6 +131,9 @@ export interface HealthResponse {
   generatedAtMs: number;
 }
 
+/** Settings returned to the local settings page, including the current provider's saved key. */
+export type SettingsResponse = Settings & { apiKey: string };
+
 /** base64url-encode a canonical path for the :enc route param (mirrors the server). */
 export function encodePath(canonical: string): string {
   const b64 = btoa(unescape(encodeURIComponent(canonical)));
@@ -307,7 +310,7 @@ export const api = {
   clearStage: async (canonical: string): Promise<void> => {
     await request(`/api/projects/${encodePath(canonical)}/stage`, { method: "DELETE" });
   },
-  getSettings: (): Promise<Settings> => request<Settings>("/api/settings"),
+  getSettings: (): Promise<SettingsResponse> => request<SettingsResponse>("/api/settings"),
   putSettings: (
     patch: Partial<Settings> & {
       apiKey?: string;
@@ -315,8 +318,8 @@ export const api = {
       openaiApiKey?: string;
       zhipuApiKey?: string;
     },
-  ): Promise<Settings> =>
-    request<Settings>("/api/settings", {
+  ): Promise<SettingsResponse> =>
+    request<SettingsResponse>("/api/settings", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(patch),
