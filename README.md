@@ -156,5 +156,6 @@ docs             Product requirements, milestone status, and design records
 ## Documentation
 
 - [Versioned documentation](docs/README.md): requirements, completion status, and the next milestone.
-- [Troubleshooting](docs/troubleshooting.md): startup, data-source, database, and model failures.
-- [Release checklist](docs/release-checklist.md): automated checks, live model checks, and visual review.
+- [Market research](docs/market-research.md): the AI coding multi-session, agent dashboard, orchestration, and agentic IDE landscape as of July 31, 2026.
+- [v0.9.0 troubleshooting](docs/versions/v0.9.0/troubleshooting.md): historical web/CLI startup, data-source, database, and model failures.
+- [v0.9.0 release checklist](docs/versions/v0.9.0/release-checklist.md): historical web/CLI automated, live-model, and visual review checks.
