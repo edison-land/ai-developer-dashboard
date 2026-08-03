@@ -129,6 +129,7 @@ export interface HealthResponse {
   gitAvailable: boolean;
   projectCount: number;
   generatedAtMs: number;
+  version?: string | null;
 }
 
 /** Settings returned to the local settings page, including the current provider's saved key. */
@@ -324,6 +325,14 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(patch),
     }),
+  listModels: async (requestUrl: string, apiKey: string): Promise<string[]> => {
+    const body = await request<{ models: string[] }>("/api/models", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requestUrl, apiKey }),
+    });
+    return Array.isArray(body.models) ? body.models : [];
+  },
   synthesize: (canonical: string): Promise<{ project: UnifiedProject; outcome: SynthOutcome }> =>
     request(`/api/projects/${encodePath(canonical)}/synthesize`, { method: "POST" }),
   synthesizeAll,

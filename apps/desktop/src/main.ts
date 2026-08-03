@@ -54,7 +54,7 @@ async function startManagedBackend(): Promise<ManagedBackend> {
   debug(`data directory ready at ${preparedData.dataDir} (${preparedData.mode})`);
   if (preparedData.backupDir) debug(`data migration backup at ${preparedData.backupDir}`);
   const config = resolveConfig({ dataDir: preparedData.dataDir });
-  const deps = createServerDeps({ config, uiDir: uiDirectory() });
+  const deps = createServerDeps({ config, uiDir: uiDirectory(), version: app.getVersion() });
   let running;
   try {
     debug("starting local server");

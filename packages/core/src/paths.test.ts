@@ -41,7 +41,17 @@ describe("canonicalizePath", () => {
 
 describe("displayPath", () => {
   it("converts forward slashes back to backslashes for Windows display", () => {
-    expect(displayPath("D:/Agent RA2")).toBe("D:\\Agent RA2");
+    expect(displayPath("D:/Agent RA2", "win32")).toBe("D:\\Agent RA2");
+  });
+
+  it("keeps forward slashes on macOS and Linux", () => {
+    expect(displayPath("/Users/friend/agent ra2", "darwin")).toBe("/Users/friend/agent ra2");
+    expect(displayPath("D:/Agent RA2", "linux")).toBe("D:/Agent RA2");
+  });
+
+  it("defaults to the current platform", () => {
+    const expected = process.platform === "win32" ? "D:\\Agent RA2" : "D:/Agent RA2";
+    expect(displayPath("D:/Agent RA2")).toBe(expected);
   });
 });
 

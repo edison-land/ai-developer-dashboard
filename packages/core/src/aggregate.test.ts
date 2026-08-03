@@ -66,7 +66,9 @@ describe("mergeByCanonicalPath", () => {
     expect(p.lastActionOneLiner).toBe("CC: fix off-by-one"); // CC precedence
     expect(p.git?.dirtyFileCount).toBe(4);
     expect(p.canonicalPath).toBe("D:/btc-bear-market-dashboard"); // CC representative case
-    expect(p.displayPath).toBe("D:\\btc-bear-market-dashboard");
+    expect(p.displayPath).toBe(
+      process.platform === "win32" ? "D:\\btc-bear-market-dashboard" : "D:/btc-bear-market-dashboard",
+    );
     expect(p.name).toBe("btc-bear-market-dashboard");
   });
 

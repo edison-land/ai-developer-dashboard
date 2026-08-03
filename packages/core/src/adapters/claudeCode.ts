@@ -24,6 +24,12 @@ interface SessionRow {
   kind?: string;
 }
 
+interface HistoryRow {
+  display?: unknown;
+  timestamp?: unknown;
+  project?: unknown;
+}
+
 function toMs(v: unknown): number | undefined {
   if (typeof v === "number" && Number.isFinite(v) && v > 0) return v;
   if (typeof v === "string") {
@@ -31,6 +37,12 @@ function toMs(v: unknown): number | undefined {
     return Number.isNaN(t) ? undefined : t;
   }
   return undefined;
+}
+
+/** Collapse a (possibly multi-line) prompt to a bounded single line. */
+function toOneLiner(text: string, max = 300): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max)}…` : flat;
 }
 
 function maxDefined(...vals: (number | undefined)[]): number | undefined {
@@ -44,6 +56,13 @@ function maxDefined(...vals: (number | undefined)[]): number | undefined {
  * form, CJK intact — the reliable source of truth). Live busy/idle status comes
  * from `~/.claude/sessions/<pid>.json`. Transcripts are NOT read here; only the
  * tail path is stashed for lazy synthesis.
+ *
+ * Activity (lastActiveMs / lastActionOneLiner) prefers the .claude.json session
+ * fields, but current Claude Code versions rarely write them (on a real
+ * machine only 2 of 13 projects had them, which silently emptied the activity
+ * timeline). The fallback is `~/.claude/history.jsonl` — one JSON line per
+ * submitted prompt ({display, timestamp, project}) — indexed newest-first per
+ * project below.
  */
 export class ClaudeCodeAdapter implements Adapter {
   readonly id = "claude-code" as const;
@@ -58,11 +77,13 @@ export class ClaudeCodeAdapter implements Adapter {
     const data = JSON.parse(fs.readFileSync(this.cfg.claudeJson, "utf8")) as ClaudeJson;
     const projects = data.projects ?? {};
     const liveByPath = this.readLiveSessions();
+    const historyByPath = this.readHistoryIndex();
 
     const out: RawSignals[] = [];
     for (const [rawPath, entry] of Object.entries(projects)) {
       const canonicalPath = canonicalizePath(rawPath);
       const live = liveByPath.get(pathKey(canonicalPath));
+      const history = historyByPath.get(pathKey(canonicalPath));
       const tokens =
         (entry.lastTotalInputTokens ?? 0) + (entry.lastTotalOutputTokens ?? 0) || undefined;
 
@@ -78,8 +99,12 @@ export class ClaudeCodeAdapter implements Adapter {
       out.push({
         source: "claude-code",
         canonicalPath,
-        lastActiveMs: maxDefined(entry.lastSessionModified, toMs(live?.updatedAt)),
-        lastActionOneLiner: entry.lastSessionFirstPrompt,
+        lastActiveMs: maxDefined(
+          entry.lastSessionModified,
+          toMs(live?.updatedAt),
+          history?.atMs,
+        ),
+        lastActionOneLiner: entry.lastSessionFirstPrompt ?? history?.text,
         liveStatus:
           live?.status === "busy" ? "busy" : live?.status === "idle" ? "idle" : undefined,
         tokensUsed: tokens,
@@ -116,6 +141,38 @@ export class ClaudeCodeAdapter implements Adapter {
         }
       } catch {
         // skip unreadable session file
+      }
+    }
+    return map;
+  }
+
+  /** Map pathKey -> newest prompt recorded in ~/.claude/history.jsonl for that project. */
+  private readHistoryIndex(): Map<string, { atMs: number; text: string }> {
+    const map = new Map<string, { atMs: number; text: string }>();
+    let raw: string;
+    try {
+      raw = fs.readFileSync(path.join(this.cfg.claudeDir, "history.jsonl"), "utf8");
+    } catch {
+      return map; // no history file (fresh install / different layout) — fine
+    }
+    for (const line of raw.split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      let row: HistoryRow;
+      try {
+        row = JSON.parse(line) as HistoryRow;
+      } catch {
+        continue; // skip unparseable line
+      }
+      if (typeof row.project !== "string" || !row.project) continue;
+      const atMs = toMs(row.timestamp);
+      if (atMs === undefined) continue;
+      const text = typeof row.display === "string" ? toOneLiner(row.display) : "";
+      const key = pathKey(canonicalizePath(row.project));
+      const prev = map.get(key);
+      if (!prev || atMs > prev.atMs) {
+        map.set(key, { atMs, text });
+      } else if (atMs === prev.atMs && text && !prev.text) {
+        prev.text = text;
       }
     }
     return map;

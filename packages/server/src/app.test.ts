@@ -78,6 +78,60 @@ describe("createApp", () => {
     expect(body).toHaveProperty("dbPath");
   });
 
+  it("GET /api/health reports the product version when provided", async () => {
+    const res = await createApp({ ...deps(), version: "1.2.3" }).request("/api/health");
+    const body = (await res.json()) as any;
+    expect(body.version).toBe("1.2.3");
+
+    const noVersion = await createApp(deps()).request("/api/health");
+    expect(((await noVersion.json()) as any).version).toBeNull();
+  });
+
+  it("POST /api/models requires only requestUrl (apiKey is optional)", async () => {
+    const res = await createApp(deps()).request("/api/models", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ apiKey: "k" }),
+    });
+    expect(res.status).toBe(400);
+
+    // No API Key at all still reaches the provider.
+    const listModels = async (_url: string, apiKey: string) => [apiKey || "anonymous"];
+    const ok = await createApp({ ...deps(), listModels }).request("/api/models", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requestUrl: "https://example.com/v1/" }),
+    });
+    expect(ok.status).toBe(200);
+    expect(((await ok.json()) as any).models).toEqual(["anonymous"]);
+  });
+
+  it("POST /api/models returns the provider's model ids", async () => {
+    const listModels = async () => ["glm-4-air", "glm-4-flash"];
+    const res = await createApp({ ...deps(), listModels }).request("/api/models", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requestUrl: "https://example.com/v1/", apiKey: "k" }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.models).toEqual(["glm-4-air", "glm-4-flash"]);
+  });
+
+  it("POST /api/models surfaces provider failures as 502 with the message", async () => {
+    const listModels = async () => {
+      throw new Error("API Key 无效或没有访问权限（HTTP 401）");
+    };
+    const res = await createApp({ ...deps(), listModels }).request("/api/models", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ requestUrl: "https://example.com/v1/", apiKey: "bad" }),
+    });
+    expect(res.status).toBe(502);
+    const body = (await res.json()) as any;
+    expect(body.error).toContain("API Key 无效");
+  });
+
   it("GET /api/projects returns the collected projects", async () => {
     const res = await createApp(deps()).request("/api/projects");
     expect(res.status).toBe(200);

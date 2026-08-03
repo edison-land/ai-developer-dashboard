@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import fs from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { parseArgs } from "node:util";
@@ -31,6 +32,18 @@ function openBrowser(url: string): void {
   }
 }
 
+/** Best-effort product version for the UI header when running from the repo CLI. */
+function packageVersion(repoRoot: string): string | undefined {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8")) as {
+      version?: string;
+    };
+    return pkg.version;
+  } catch {
+    return undefined;
+  }
+}
+
 async function main(): Promise<void> {
   // Drop a literal "--" (pnpm/npm may forward it) so option parsing isn't derailed.
   const argv = process.argv.slice(2).filter((a) => a !== "--");
@@ -58,7 +71,7 @@ async function main(): Promise<void> {
   const repoRoot = path.resolve(here, "..", "..", "..");
   const uiDir = path.join(repoRoot, "packages", "ui", "dist");
 
-  const deps = createServerDeps({ config, uiDir });
+  const deps = createServerDeps({ config, uiDir, version: packageVersion(repoRoot) });
   const server = startServer(deps, { port });
   server.on("error", (error) => {
     const code = (error as NodeJS.ErrnoException).code;

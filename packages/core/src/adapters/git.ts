@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import type { StatusSnapshot } from "../domain.js";
-import { displayPath, pathKey } from "../paths.js";
+import { pathKey } from "../paths.js";
 
 interface GitResult {
   ok: boolean;
@@ -89,7 +89,10 @@ export function parseStatus(out: string): ParsedStatus {
 /**
  * Snapshots git state per project, live, by spawning git. Paths are passed as
  * an argv array (never a shell string) so backslashes/spaces/CJK need no
- * quoting. Concurrency is capped because spawning many git processes on Windows
+ * quoting, and are converted with path.normalize so each OS gets its native
+ * form (Windows: backslashes; macOS/Linux: forward slashes — passing a
+ * Windows-ified `\Users\...` path to git broke every snapshot on macOS).
+ * Concurrency is capped because spawning many git processes on Windows
  * is slow. Failures (non-repo, missing upstream, no commits) are captured as
  * fields, never thrown — the card shows a muted line.
  */
@@ -97,7 +100,7 @@ export class GitAdapter {
   constructor(private concurrency = 6) {}
 
   async snapshotOne(canonicalPath: string): Promise<StatusSnapshot> {
-    const dir = displayPath(canonicalPath);
+    const dir = path.normalize(canonicalPath);
     const [status, head, log] = await Promise.all([
       runGit(dir, ["status", "-b", "--porcelain=v1"]),
       runGit(dir, ["rev-parse", "HEAD"]),

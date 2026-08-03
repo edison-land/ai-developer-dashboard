@@ -27,9 +27,17 @@ export function canonicalizePath(p: string): string {
   return s;
 }
 
-/** Convert a canonical (forward-slash) path back to a Windows-friendly display form. */
-export function displayPath(canonical: string): string {
-  return canonical.replace(/\//g, "\\");
+/**
+ * Convert a canonical (forward-slash) path to the running platform's display
+ * form: backslashes on Windows, forward slashes everywhere else. macOS/Linux
+ * paths must never be rewritten to backslashes — `\Users\foo` is not a real
+ * path there (this exact mistake broke every git snapshot on macOS).
+ */
+export function displayPath(
+  canonical: string,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  return platform === "win32" ? canonical.replace(/\//g, "\\") : canonical;
 }
 
 /**

@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveConfig } from "../config.js";
 import { ClaudeCodeAdapter } from "./claudeCode.js";
@@ -38,5 +40,121 @@ describe("ClaudeCodeAdapter", () => {
     const withTail = signals.find((s) => s.transcriptTailPath);
     expect(withTail).toBeDefined();
     expect(withTail!.transcriptTailPath).toMatch(/\.jsonl$/);
+  });
+});
+
+/** Build an adapter pointed at a temp .claude dir + .claude.json fixture. */
+function fixtureAdapter(setup: (root: string) => void): { adapter: ClaudeCodeAdapter; root: string } {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "addb-cc-"));
+  setup(root);
+  const adapter = new ClaudeCodeAdapter({
+    ...resolveConfig(),
+    claudeDir: root,
+    claudeJson: path.join(root, ".claude.json"),
+  });
+  return { adapter, root };
+}
+
+function writeJsonl(file: string, rows: object[]): void {
+  fs.writeFileSync(file, rows.map((r) => JSON.stringify(r)).join("\n") + "\n", "utf8");
+}
+
+describe("ClaudeCodeAdapter history.jsonl fallback", () => {
+  // Current Claude Code rarely writes lastSessionFirstPrompt/lastSessionModified
+  // into ~/.claude.json; activity must come from ~/.claude/history.jsonl instead.
+  it("fills lastActiveMs and one-liner from history when .claude.json lacks session fields", async () => {
+    const { adapter } = fixtureAdapter((root) => {
+      fs.writeFileSync(
+        path.join(root, ".claude.json"),
+        JSON.stringify({ projects: { "/Users/friend/proj-a": { lastSessionId: "s1" } } }),
+      );
+      writeJsonl(path.join(root, "history.jsonl"), [
+        { display: "older prompt", timestamp: 1_750_000_000_000, project: "/Users/friend/proj-a", sessionId: "s0" },
+        { display: "newest prompt\nwith a second line", timestamp: 1_750_000_100_000, project: "/Users/friend/proj-a", sessionId: "s1" },
+        { display: "unrelated", timestamp: 1_750_000_200_000, project: "/Users/friend/other", sessionId: "s2" },
+      ]);
+    });
+
+    const signals = await adapter.collect({});
+    const sig = signals.find((s) => s.canonicalPath === "/Users/friend/proj-a");
+    expect(sig).toBeDefined();
+    expect(sig!.lastActiveMs).toBe(1_750_000_100_000);
+    expect(sig!.lastActionOneLiner).toBe("newest prompt with a second line");
+  });
+
+  it("prefers .claude.json session fields over history when both exist", async () => {
+    const { adapter } = fixtureAdapter((root) => {
+      fs.writeFileSync(
+        path.join(root, ".claude.json"),
+        JSON.stringify({
+          projects: {
+            "D:/Foo": {
+              lastSessionFirstPrompt: "first prompt from session",
+              lastSessionModified: 1_750_000_300_000,
+            },
+          },
+        }),
+      );
+      writeJsonl(path.join(root, "history.jsonl"), [
+        { display: "history text", timestamp: 1_750_000_100_000, project: "D:\\Foo" },
+      ]);
+    });
+
+    const [sig] = await adapter.collect({});
+    expect(sig!.lastActionOneLiner).toBe("first prompt from session");
+    // lastActiveMs still takes the max across .claude.json and history.
+    expect(sig!.lastActiveMs).toBe(1_750_000_300_000);
+  });
+
+  it("matches history rows to projects across slash styles and case", async () => {
+    const { adapter } = fixtureAdapter((root) => {
+      fs.writeFileSync(
+        path.join(root, ".claude.json"),
+        JSON.stringify({ projects: { "D:\\PolyU\\Foo": {} } }),
+      );
+      writeJsonl(path.join(root, "history.jsonl"), [
+        { display: "mixed style", timestamp: 1_750_000_100_000, project: "d:/polyu/foo" },
+      ]);
+    });
+
+    const [sig] = await adapter.collect({});
+    expect(sig!.lastActiveMs).toBe(1_750_000_100_000);
+    expect(sig!.lastActionOneLiner).toBe("mixed style");
+  });
+
+  it("skips malformed history lines and missing files without failing", async () => {
+    const { adapter } = fixtureAdapter((root) => {
+      fs.writeFileSync(
+        path.join(root, ".claude.json"),
+        JSON.stringify({ projects: { "D:/Bar": {} } }),
+      );
+      fs.writeFileSync(
+        path.join(root, "history.jsonl"),
+        [
+          "not json at all",
+          JSON.stringify({ display: "no project field", timestamp: 1_750_000_100_000 }),
+          JSON.stringify({ project: "D:/Bar", timestamp: "not-a-date" }),
+          JSON.stringify({ display: "good row", timestamp: 1_750_000_100_000, project: "D:/Bar" }),
+        ].join("\n"),
+      );
+    });
+
+    const [sig] = await adapter.collect({});
+    expect(sig!.lastActiveMs).toBe(1_750_000_100_000);
+    expect(sig!.lastActionOneLiner).toBe("good row");
+  });
+
+  it("works when history.jsonl does not exist", async () => {
+    const { adapter } = fixtureAdapter((root) => {
+      fs.writeFileSync(
+        path.join(root, ".claude.json"),
+        JSON.stringify({ projects: { "D:/Solo": {} } }),
+      );
+    });
+
+    const [sig] = await adapter.collect({});
+    expect(sig).toBeDefined();
+    expect(sig!.lastActiveMs).toBeUndefined();
+    expect(sig!.lastActionOneLiner).toBeUndefined();
   });
 });

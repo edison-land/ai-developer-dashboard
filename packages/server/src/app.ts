@@ -18,6 +18,7 @@ import {
   withArchived,
 } from "@ai-dashboard/core/node";
 import { decodePath } from "./pathParam.js";
+import { listModels as defaultListModels } from "./models.js";
 
 export interface ServerDeps {
   config: DashboardConfig;
@@ -28,6 +29,10 @@ export interface ServerDeps {
   synthesize: (project: UnifiedProject) => Promise<SynthOutcome>;
   /** Optional absolute path to the built UI; if absent, the API still works. */
   uiDir?: string;
+  /** Product version shown in the UI header (desktop: app.getVersion()). */
+  version?: string;
+  /** List available models from an OpenAI-compatible endpoint (settings page). */
+  listModels?: (requestUrl: string, apiKey: string) => Promise<string[]>;
 }
 
 export interface RefreshSynthesisSummary {
@@ -212,6 +217,7 @@ export function createApp(deps: ServerDeps): Hono {
       gitAvailable: true,
       projectCount: state.projects.length,
       generatedAtMs: state.generatedAtMs,
+      version: deps.version ?? null,
     }),
   );
 
@@ -398,6 +404,27 @@ export function createApp(deps: ServerDeps): Hono {
   });
 
   api.get("/settings", (c) => c.json(settingsResponse()));
+
+  api.post("/models", async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      requestUrl?: unknown;
+      apiKey?: unknown;
+    };
+    const requestUrl = typeof body.requestUrl === "string" ? body.requestUrl.trim() : "";
+    const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
+    if (!requestUrl) {
+      return c.json({ error: "请提供请求地址" }, 400);
+    }
+    const listModels = deps.listModels ?? defaultListModels;
+    try {
+      const models = await listModels(requestUrl, apiKey);
+      return c.json({ models });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "拉取模型列表失败";
+      return c.json({ error: message }, 502);
+    }
+  });
+
   api.put("/settings", async (c) => {
     const body = (await c.req.json().catch(() => ({}))) ?? {};
     if (body.provider !== undefined) {

@@ -29,7 +29,7 @@ export { NodeTailReader, OpenAICompatibleProvider, ZhipuProvider };
  * the pieces fit together — the Electron shell (Phase 6) will reuse it directly.
  */
 export function createServerDeps(
-  opts: { config: DashboardConfig; uiDir?: string },
+  opts: { config: DashboardConfig; uiDir?: string; version?: string },
 ): ServerDeps & { store: SqliteStore } {
   const store = new SqliteStore(opts.config.dbPath);
   const dashboard = new Dashboard(opts.config);
@@ -72,7 +72,7 @@ export function createServerDeps(
       model: settings.model,
     });
   };
-  return { config: opts.config, store, collect, synthesize, uiDir: opts.uiDir };
+  return { config: opts.config, store, collect, synthesize, uiDir: opts.uiDir, version: opts.version };
 }
 
 export interface StartOptions {
