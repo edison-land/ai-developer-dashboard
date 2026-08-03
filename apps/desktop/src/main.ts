@@ -54,7 +54,7 @@ async function startManagedBackend(): Promise<ManagedBackend> {
   debug(`data directory ready at ${preparedData.dataDir} (${preparedData.mode})`);
   if (preparedData.backupDir) debug(`data migration backup at ${preparedData.backupDir}`);
   const config = resolveConfig({ dataDir: preparedData.dataDir });
-  const deps = createServerDeps({ config, uiDir: uiDirectory() });
+  const deps = createServerDeps({ config, uiDir: uiDirectory(), version: app.getVersion() });
   let running;
   try {
     debug("starting local server");
@@ -94,13 +94,15 @@ const runtime: DesktopRuntime = {
   },
   onSecondInstance: (listener) => app.on("second-instance", listener),
   onAllWindowsClosed: (listener) => app.on("window-all-closed", listener),
+  onActivate: (listener) => app.on("activate", listener),
+  shouldQuitOnAllWindowsClosed: () => process.platform !== "darwin",
   whenReady: async () => {
     await app.whenReady();
     debug("electron ready");
   },
   createWindow: async (url) => {
     debug(`creating window for ${url}`);
-    Menu.setApplicationMenu(null);
+    if (process.platform !== "darwin") Menu.setApplicationMenu(null);
     const window = new BrowserWindow({
       title: "AI Developer Dashboard",
       width: 1440,

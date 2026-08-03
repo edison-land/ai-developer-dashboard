@@ -9,6 +9,8 @@ export interface DesktopRuntime {
   requestSingleInstanceLock(): boolean;
   onSecondInstance(listener: () => void): void;
   onAllWindowsClosed(listener: () => void): void;
+  onActivate(listener: () => void): void;
+  shouldQuitOnAllWindowsClosed(): boolean;
   whenReady(): Promise<void>;
   createWindow(url: string): Promise<DesktopWindow>;
   showStartupError(message: string): void;
@@ -59,26 +61,41 @@ export function createDesktopController(
     return stopping;
   };
 
+  const createAndTrackWindow = async (): Promise<void> => {
+    if (!backend || window) return;
+    window = await runtime.createWindow(backend.url);
+  };
+
+  const restoreOrCreateWindow = (): void => {
+    if (!window) {
+      void createAndTrackWindow().catch(async (error) => {
+        runtime.showStartupError(`AI Developer Dashboard 启动失败：${errorMessage(error)}`);
+        await stop();
+      });
+      return;
+    }
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  };
+
   const start = async (): Promise<void> => {
     if (!runtime.requestSingleInstanceLock()) {
       runtime.quit();
       return;
     }
 
-    runtime.onSecondInstance(() => {
-      if (!window) return;
-      if (window.isMinimized()) window.restore();
-      window.show();
-      window.focus();
-    });
+    runtime.onSecondInstance(restoreOrCreateWindow);
     runtime.onAllWindowsClosed(() => {
-      void stop();
+      window = undefined;
+      if (runtime.shouldQuitOnAllWindowsClosed()) void stop();
     });
+    runtime.onActivate(restoreOrCreateWindow);
 
     try {
       await runtime.whenReady();
       backend = await startBackend();
-      window = await runtime.createWindow(backend.url);
+      await createAndTrackWindow();
     } catch (error) {
       runtime.showStartupError(`AI Developer Dashboard 启动失败：${errorMessage(error)}`);
       await stop();

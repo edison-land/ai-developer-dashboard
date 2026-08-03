@@ -9,6 +9,7 @@ import {
 function harness(hasLock = true) {
   let secondInstance: (() => void) | undefined;
   let allWindowsClosed: (() => void) | undefined;
+  let activate: (() => void) | undefined;
   const window: DesktopWindow = {
     isMinimized: vi.fn(() => true),
     restore: vi.fn(),
@@ -27,6 +28,10 @@ function harness(hasLock = true) {
     onAllWindowsClosed: vi.fn((listener) => {
       allWindowsClosed = listener;
     }),
+    onActivate: vi.fn((listener) => {
+      activate = listener;
+    }),
+    shouldQuitOnAllWindowsClosed: vi.fn(() => true),
     whenReady: vi.fn(async () => undefined),
     createWindow: vi.fn(async () => window),
     showStartupError: vi.fn(),
@@ -41,6 +46,7 @@ function harness(hasLock = true) {
     startBackend,
     secondInstance: () => secondInstance?.(),
     allWindowsClosed: () => allWindowsClosed?.(),
+    activate: () => activate?.(),
   };
 }
 
@@ -85,6 +91,20 @@ describe("desktop lifecycle", () => {
     await vi.waitFor(() => expect(h.backend.close).toHaveBeenCalledOnce());
 
     expect(h.runtime.quit).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the backend alive and recreates the window after macOS activation", async () => {
+    const h = harness();
+    h.runtime.shouldQuitOnAllWindowsClosed = vi.fn(() => false);
+    await createDesktopController(h.runtime, h.startBackend).start();
+
+    h.allWindowsClosed();
+    expect(h.backend.close).not.toHaveBeenCalled();
+    expect(h.runtime.quit).not.toHaveBeenCalled();
+
+    h.activate();
+    await vi.waitFor(() => expect(h.runtime.createWindow).toHaveBeenCalledTimes(2));
+    expect(h.startBackend).toHaveBeenCalledOnce();
   });
 
   it("still quits and records the problem when backend cleanup fails", async () => {

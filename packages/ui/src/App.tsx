@@ -7,6 +7,7 @@ import { ProjectDetailsModal } from "./components/ProjectDetailsModal";
 import { ThemeToggle } from "./components/ThemeToggle";
 import {
   useAutoRefresh,
+  useHealth,
   useProjects,
   useRefresh,
   useSettings,
@@ -32,6 +33,7 @@ export default function App() {
   const [showArchive, setShowArchive] = useState(false);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const projects = useProjects();
+  const health = useHealth();
   const refresh = useRefresh();
   const synthesizeAll = useSynthesizeAll();
   const settings = useSettings();
@@ -81,6 +83,14 @@ export default function App() {
                 <h1 className="truncate text-xl font-bold tracking-[-0.035em] ui-text">
                   AI 工作台
                 </h1>
+                {health.data?.version && (
+                  <span
+                    className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ui-muted ui-divider"
+                    title="当前软件版本"
+                  >
+                    v{health.data.version}
+                  </span>
+                )}
                 <span className="hidden text-xs ui-muted sm:inline">
                   {projects.isLoading
                     ? "正在读取项目…"

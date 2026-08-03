@@ -5,6 +5,7 @@ import {
   type ProviderId,
 } from "@ai-dashboard/core";
 import { Icon } from "../components/Icons";
+import { api } from "../api";
 import { useSaveSettings, useSettings } from "../hooks";
 import { useTheme, type ThemePreference } from "../theme";
 
@@ -19,6 +20,20 @@ export function SettingsView() {
   const [apiKey, setApiKey] = useState("");
   const [autoRefreshMins, setAutoRefreshMins] = useState(0);
   const [synthOnRefresh, setSynthOnRefresh] = useState(false);
+
+  // Model-list dropdown state: fetched from the endpoint, never persisted.
+  const [models, setModels] = useState<string[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsMessage, setModelsMessage] = useState("");
+  const [modelsError, setModelsError] = useState(false);
+
+  // The fetched list belongs to a specific (requestUrl, apiKey) pair — drop it
+  // as soon as either input changes so a stale list can't mislead selection.
+  useEffect(() => {
+    setModels([]);
+    setModelsMessage("");
+    setModelsError(false);
+  }, [requestUrl, apiKey]);
 
   useEffect(() => {
     if (!data) return;
@@ -48,6 +63,32 @@ export function SettingsView() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
+
+  const onFetchModels = async () => {
+    if (!requestUrl.trim()) {
+      setModelsError(true);
+      setModelsMessage("请先填写请求地址，再拉取模型列表");
+      return;
+    }
+    setModelsLoading(true);
+    setModelsMessage("");
+    setModelsError(false);
+    try {
+      const list = await api.listModels(requestUrl, apiKey);
+      setModels(list);
+      setModelsMessage(
+        list.length
+          ? `已获取 ${list.length} 个可用模型，可在模型框中下拉选择`
+          : "该服务没有返回任何模型，请手动输入模型名",
+      );
+    } catch (error) {
+      setModels([]);
+      setModelsError(true);
+      setModelsMessage(error instanceof Error ? error.message : "拉取模型列表失败");
+    } finally {
+      setModelsLoading(false);
+    }
+  };
 
   const onSave = () => {
     save.mutate({
@@ -87,7 +128,7 @@ export function SettingsView() {
                 const next = event.target.value as ProviderId;
                 const preset = providerPreset(next);
                 setProvider(next);
-                setApiKey("");
+                // Keep the typed API Key — switching provider must not wipe it.
                 if (!preset || preset.protocol !== "openai-chat-completions") return;
                 setRequestUrl(preset.requestUrl);
                 setModel(preset.recommendedModel);
@@ -117,15 +158,50 @@ export function SettingsView() {
             />
           </Field>
           <Field label="模型">
-            <input
-              name="model"
-              autoComplete="off"
-              spellCheck={false}
-              value={model}
-              onChange={(event) => setModel(event.target.value)}
-              placeholder="glm-4-flash-250414"
-              className="ui-input"
-            />
+            <div className="flex gap-2">
+              <input
+                name="model"
+                autoComplete="off"
+                spellCheck={false}
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+                placeholder="glm-4-flash-250414"
+                className="ui-input"
+              />
+              <button
+                type="button"
+                onClick={onFetchModels}
+                disabled={modelsLoading}
+                title="按当前请求地址和 API Key 拉取可用模型列表"
+                className="ui-button shrink-0 px-2.5 py-1.5 text-xs"
+              >
+                {modelsLoading ? "拉取中…" : "拉取模型"}
+              </button>
+            </div>
+            {models.length > 0 && (
+              <select
+                value=""
+                onChange={(event) => {
+                  if (event.target.value) setModel(event.target.value);
+                }}
+                aria-label="从可用模型中选择"
+                className="ui-input mt-2"
+              >
+                <option value="" disabled>
+                  从 {models.length} 个可用模型中选择…
+                </option>
+                {models.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+            )}
+            {modelsMessage && (
+              <p className={`mt-1.5 text-xs ${modelsError ? "ui-danger" : "ui-muted"}`}>
+                {modelsMessage}
+              </p>
+            )}
           </Field>
         </div>
 
@@ -185,7 +261,7 @@ export function SettingsView() {
             value="system"
             current={preference}
             icon="settings"
-            title="跟随 Windows"
+            title="跟随系统"
             description="随系统明暗设置变化"
             onSelect={setPreference}
           />
