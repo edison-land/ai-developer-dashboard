@@ -13,6 +13,18 @@ const itReal = hasClaude ? it : it.skip;
 const repositoryPath = pathKey(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", ".."),
 );
+const hasCurrentRepository = (() => {
+  if (!hasClaude) return false;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(cfg.claudeJson, "utf8")) as {
+      projects?: Record<string, unknown>;
+    };
+    return Object.keys(parsed.projects ?? {}).some((project) => pathKey(project) === repositoryPath);
+  } catch {
+    return false;
+  }
+})();
+const itCurrentRepository = hasCurrentRepository ? it : it.skip;
 
 describe("ClaudeCodeAdapter", () => {
   it("reports availability based on ~/.claude.json", () => {
@@ -32,7 +44,7 @@ describe("ClaudeCodeAdapter", () => {
     }
   });
 
-  itReal("includes the current dashboard project (this repo)", async () => {
+  itCurrentRepository("includes the current dashboard project when Claude has recorded it", async () => {
     const a = new ClaudeCodeAdapter(cfg);
     const signals = await a.collect({});
     const paths = signals.map((s) => pathKey(s.canonicalPath));

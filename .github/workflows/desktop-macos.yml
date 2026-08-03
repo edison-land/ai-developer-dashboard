@@ -42,14 +42,15 @@ jobs:
         run: pnpm test
 
       - name: Build unsigned macOS packages
-        run: pnpm desktop:package:mac
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: pnpm desktop:package:mac:unsigned
 
       - name: Upload unsigned macOS packages
         uses: actions/upload-artifact@v4
         with:
-          name: ai-developer-dashboard-macos
+          # Pull-request artifacts are for smoke testing only. Public release
+          # packages must use `desktop:package:mac` with Developer ID signing
+          # and notarization credentials configured.
+          name: ai-developer-dashboard-macos-unsigned-ci
           path: |
             dist/**/*.dmg
             dist/**/*.zip

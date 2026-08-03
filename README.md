@@ -65,10 +65,10 @@ AI Developer Dashboard 读取这些工具留在本机的项目活动，把同一
 4. 从 Applications 打开应用。
 
 > [!NOTE]
-> 普通用户不需要安装开发环境，也不需要使用终端、CLI、浏览器地址或端口。macOS 构建未签名、未公证；首次打开如被 Gatekeeper 阻止，请在 Finder 中按住 Control 点按应用并选择“打开”，或在“系统设置 → 隐私与安全性”中允许打开。
+> 普通用户不需要安装开发环境，也不需要使用终端、CLI、浏览器地址或端口。面向用户发布的 macOS 安装包应使用 Developer ID 完整签名并完成 Apple 公证；GitHub Actions 中标记为 `unsigned-ci` 的构建只用于开发测试，不应作为公开安装包分发。
 
 > [!NOTE]
-> 应用需要读取项目目录，macOS 会对「文稿」「桌面」「下载」三类受保护文件夹各弹一次授权（按类别算，不按项目数量，最多 3 次），逐一点“允许”即可。想一劳永逸：在“系统设置 → 隐私与安全性 → 完全磁盘访问权限”中加入 AI Developer Dashboard，一次授权后不再弹窗。如果误点了“不允许”，对应文件夹里项目的 Git 状态会缺失，可在“系统设置 → 隐私与安全性 → 文件与文件夹 → AI Developer Dashboard”中重新勾选。未签名应用偶尔记不住授权，在上述设置页手动勾选一次即可根治。
+> 应用只在读取 Git 状态时请求项目目录权限。macOS 可能分别询问「文稿」「桌面」「下载」等受保护文件夹；请只允许你确实希望纳入面板的目录。选择“不允许”是安全的：应用会停止扫描该类别中的剩余项目，避免重复弹窗，对应项目只是暂时缺少 Git 状态。请不要为本应用授予“完全磁盘访问权限”；如需稍后调整，请使用“系统设置 → 隐私与安全性 → 文件与文件夹 → AI Developer Dashboard”。
 
 ## 它如何整理项目？
 
@@ -163,10 +163,10 @@ The stage board groups projects into Idea, In Development, To Verify, Complete, 
 4. Open the application from Applications.
 
 > [!NOTE]
-> You do not need a development environment, terminal, CLI command, browser address, or port for normal use. The macOS build is intentionally unsigned and not notarized. If Gatekeeper blocks its first launch, Control-click the app in Finder and choose Open, or allow it under System Settings → Privacy & Security.
+> You do not need a development environment, terminal, CLI command, browser address, or port for normal use. Public macOS packages should be fully signed with a Developer ID and notarized by Apple. GitHub Actions artifacts marked `unsigned-ci` are development builds and must not be distributed as public installers.
 
 > [!NOTE]
-> The app reads project directories, so macOS asks once per protected folder category — Documents, Desktop, Downloads (per category, not per project; at most 3 prompts). Click OK for each. To skip prompts entirely, add AI Developer Dashboard under System Settings → Privacy & Security → Full Disk Access once. If you clicked Don't Allow by mistake, Git status will be missing for projects in that folder; re-enable it under System Settings → Privacy & Security → Files and Folders → AI Developer Dashboard. Unsigned apps occasionally fail to remember the choice; ticking it once in that settings pane fixes it permanently.
+> The app requests project-folder access only when reading Git state. macOS may ask separately for protected categories such as Documents, Desktop, and Downloads; allow only folders you intentionally want on the dashboard. Choosing Don't Allow is safe: the app stops scanning the remaining projects in that category to prevent repeated prompts, and those projects simply omit Git status. Do not grant this app Full Disk Access. To change a decision later, use System Settings → Privacy & Security → Files and Folders → AI Developer Dashboard.
 
 ## How does it organize projects?
 

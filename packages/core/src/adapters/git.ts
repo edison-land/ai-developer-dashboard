@@ -1,13 +1,16 @@
 import { execFile } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import type { StatusSnapshot } from "../domain.js";
 import { pathKey } from "../paths.js";
 
-interface GitResult {
+export interface GitResult {
   ok: boolean;
   stdout: string;
   stderr: string;
 }
+
+export type GitRunner = (cwd: string, args: string[]) => Promise<GitResult>;
 
 function runGit(cwd: string, args: string[]): Promise<GitResult> {
   return new Promise((resolve) => {
@@ -29,6 +32,41 @@ function runGit(cwd: string, args: string[]): Promise<GitResult> {
       },
     );
   });
+}
+
+export function isPermissionDeniedGitError(message: string | undefined): boolean {
+  return /(?:operation not permitted|permission denied)/i.test(message ?? "");
+}
+
+/**
+ * macOS protects these home folders with one user decision per category.
+ * Identifying the category is path-only and does not touch the filesystem, so
+ * it cannot trigger another privacy prompt by itself.
+ */
+export function macProtectedFolderRoot(projectPath: string, homeDir: string): string | undefined {
+  const candidate = path.resolve(projectPath);
+  for (const folder of ["Documents", "Desktop", "Downloads"]) {
+    const root = path.join(homeDir, folder);
+    if (candidate === root || candidate.startsWith(`${root}${path.sep}`)) return root;
+  }
+  return undefined;
+}
+
+function failedSnapshot(message: string): StatusSnapshot {
+  return {
+    branch: "(unknown)",
+    headSha: null,
+    headCommit: null,
+    dirtyFileCount: 0,
+    aheadBehind: { ahead: 0, behind: 0, hasUpstream: false },
+    gitError: message,
+  };
+}
+
+export interface GitAdapterOptions {
+  platform?: NodeJS.Platform;
+  homeDir?: string;
+  runner?: GitRunner;
 }
 
 interface ParsedStatus {
@@ -97,28 +135,32 @@ export function parseStatus(out: string): ParsedStatus {
  * fields, never thrown — the card shows a muted line.
  */
 export class GitAdapter {
-  constructor(private concurrency = 6) {}
+  private readonly platform: NodeJS.Platform;
+  private readonly homeDir: string;
+  private readonly runner: GitRunner;
+
+  constructor(private concurrency = 6, options: GitAdapterOptions = {}) {
+    this.platform = options.platform ?? process.platform;
+    this.homeDir = options.homeDir ?? os.homedir();
+    this.runner = options.runner ?? runGit;
+  }
 
   async snapshotOne(canonicalPath: string): Promise<StatusSnapshot> {
     const dir = path.normalize(canonicalPath);
-    const [status, head, log] = await Promise.all([
-      runGit(dir, ["status", "-b", "--porcelain=v1"]),
-      runGit(dir, ["rev-parse", "HEAD"]),
-      runGit(dir, ["log", "-1", "--pretty=%s%x1f%an%x1f%cI"]),
-    ]);
+    // Probe once before starting the other commands. On macOS this ensures a
+    // denied protected-folder request cannot queue three identical prompts for
+    // the same project.
+    const status = await this.runner(dir, ["status", "-b", "--porcelain=v1"]);
 
     if (!status.ok) {
-      return {
-        branch: "(unknown)",
-        headSha: null,
-        headCommit: null,
-        dirtyFileCount: 0,
-        aheadBehind: { ahead: 0, behind: 0, hasUpstream: false },
-        gitError: (status.stderr.split(/\r?\n/)[0] || "git error").trim(),
-      };
+      return failedSnapshot((status.stderr.split(/\r?\n/)[0] || "git error").trim());
     }
 
     const parsed = parseStatus(status.stdout);
+    const [head, log] = await Promise.all([
+      this.runner(dir, ["rev-parse", "HEAD"]),
+      this.runner(dir, ["log", "-1", "--pretty=%s%x1f%an%x1f%cI"]),
+    ]);
 
     let headSha: string | null = null;
     let headCommit: StatusSnapshot["headCommit"] = null;
@@ -145,9 +187,43 @@ export class GitAdapter {
   }
 
   async snapshotAll(canonicalPaths: string[]): Promise<Map<string, StatusSnapshot>> {
-    const results = await mapPool(canonicalPaths, (p) => this.snapshotOne(p), this.concurrency);
+    const uniquePaths: string[] = [];
+    const seen = new Set<string>();
+    for (const candidate of canonicalPaths) {
+      const key = pathKey(candidate);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniquePaths.push(candidate);
+    }
+
+    const deniedRoots = new Set<string>();
+    // Only one protected-folder request may be outstanding on macOS. Without
+    // this cap, multiple git children race into TCC and leave a stack of
+    // indistinguishable dialogs even after the app exits.
+    const concurrency = this.platform === "darwin" ? 1 : this.concurrency;
+    const results = await mapPool(
+      uniquePaths,
+      async (projectPath) => {
+        const protectedRoot =
+          this.platform === "darwin"
+            ? macProtectedFolderRoot(projectPath, this.homeDir)
+            : undefined;
+        if (protectedRoot && deniedRoots.has(protectedRoot)) {
+          return failedSnapshot(
+            `macOS folder access denied for ${protectedRoot}; skipped to avoid repeated prompts`,
+          );
+        }
+
+        const snapshot = await this.snapshotOne(projectPath);
+        if (protectedRoot && isPermissionDeniedGitError(snapshot.gitError)) {
+          deniedRoots.add(protectedRoot);
+        }
+        return snapshot;
+      },
+      concurrency,
+    );
     const map = new Map<string, StatusSnapshot>();
-    canonicalPaths.forEach((p, i) => map.set(pathKey(p), results[i]!));
+    uniquePaths.forEach((p, i) => map.set(pathKey(p), results[i]!));
     return map;
   }
 }

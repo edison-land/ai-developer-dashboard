@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { resolveConfig } from "./config.js";
 import { Dashboard } from "./dashboard.js";
@@ -25,8 +26,13 @@ describe("Dashboard.collect (integration)", () => {
       expect(order[i]!).toBeGreaterThanOrEqual(order[i - 1]!);
     }
 
-    // This dashboard project is present.
-    expect(projects.some((p) => p.canonicalPath.toLowerCase() === "d:/ai-developer-dashboard")).toBe(true);
+    // Every source path remains an absolute native or canonical path. The
+    // concrete project set depends on the local Claude/Codex history.
+    expect(
+      projects.every(
+        (project) => path.isAbsolute(project.canonicalPath) || /^[A-Z]:\//.test(project.canonicalPath),
+      ),
+    ).toBe(true);
 
     // Git is attached to at least some projects (as a snapshot or an error, never thrown).
     expect(projects.some((p) => p.git !== undefined)).toBe(true);

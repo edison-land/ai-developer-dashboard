@@ -3,7 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { GitAdapter, parseStatus } from "./git.js";
+import {
+  GitAdapter,
+  isPermissionDeniedGitError,
+  macProtectedFolderRoot,
+  parseStatus,
+  type GitRunner,
+} from "./git.js";
 
 function gitInit(dir: string): void {
   execFileSync("git", ["init", "-q", "-b", "main"], { cwd: dir, windowsHide: true });
@@ -67,6 +73,77 @@ describe("GitAdapter", () => {
     const map = await new GitAdapter(2).snapshotAll([fwd(r1), fwd(r2)]);
     expect(map.size).toBe(2);
     for (const v of map.values()) expect(v.headCommit?.subject).toBe("c");
+  });
+
+  it("runs only the status probe when the project cannot be accessed", async () => {
+    const calls: string[][] = [];
+    const runner: GitRunner = async (_cwd, args) => {
+      calls.push(args);
+      return { ok: false, stdout: "", stderr: "fatal: Operation not permitted" };
+    };
+
+    const snap = await new GitAdapter(6, { runner }).snapshotOne("/Users/test/Documents/private");
+
+    expect(snap.gitError).toContain("Operation not permitted");
+    expect(calls).toEqual([["status", "-b", "--porcelain=v1"]]);
+  });
+
+  it("serializes macOS scans and stops a protected folder after the first denial", async () => {
+    const calls: Array<{ cwd: string; command: string }> = [];
+    const runner: GitRunner = async (cwd, args) => {
+      calls.push({ cwd, command: args[0]! });
+      if (cwd.includes(`${path.sep}Documents${path.sep}`)) {
+        return { ok: false, stdout: "", stderr: "fatal: Operation not permitted" };
+      }
+      if (args[0] === "status") return { ok: true, stdout: "## main\n", stderr: "" };
+      if (args[0] === "rev-parse") return { ok: true, stdout: "abc123\n", stderr: "" };
+      return { ok: true, stdout: "commit\u001fTest\u001f2026-08-03T00:00:00Z\n", stderr: "" };
+    };
+    const adapter = new GitAdapter(6, {
+      platform: "darwin",
+      homeDir: "/Users/test",
+      runner,
+    });
+
+    const result = await adapter.snapshotAll([
+      "/Users/test/Documents/first",
+      "/Users/test/Documents/second",
+      "/Users/test/Desktop/allowed",
+    ]);
+
+    expect(calls.filter((call) => call.cwd.includes(`${path.sep}Documents${path.sep}`))).toEqual([
+      { cwd: path.normalize("/Users/test/Documents/first"), command: "status" },
+    ]);
+    expect(result.get("/Users/test/Documents/second")?.gitError).toContain("skipped");
+    expect(result.get("/Users/test/Desktop/allowed")?.branch).toBe("main");
+  });
+
+  it("deduplicates projects before spawning git", async () => {
+    let calls = 0;
+    const runner: GitRunner = async () => {
+      calls++;
+      return { ok: false, stdout: "", stderr: "not a repository" };
+    };
+
+    const result = await new GitAdapter(6, { runner }).snapshotAll([repo, repo, fwd(repo)]);
+
+    expect(result.size).toBe(1);
+    expect(calls).toBe(1);
+  });
+});
+
+describe("macOS permission helpers", () => {
+  it("groups projects by protected home-folder category without touching disk", () => {
+    expect(macProtectedFolderRoot("/Users/test/Documents/a", "/Users/test")).toBe(
+      path.normalize("/Users/test/Documents"),
+    );
+    expect(macProtectedFolderRoot("/Users/test/src/a", "/Users/test")).toBeUndefined();
+  });
+
+  it("recognizes the stable English errors emitted under the C locale", () => {
+    expect(isPermissionDeniedGitError("fatal: Operation not permitted")).toBe(true);
+    expect(isPermissionDeniedGitError("fatal: Permission denied")).toBe(true);
+    expect(isPermissionDeniedGitError("fatal: not a git repository")).toBe(false);
   });
 });
 

@@ -7,7 +7,8 @@
   "scripts": {
     "build:main": "node scripts/build-main.mjs",
     "package:win": "pnpm --filter @ai-dashboard/ui build && pnpm build:main && electron-builder --win nsis --x64 --publish never",
-    "package:mac": "pnpm --filter @ai-dashboard/ui build && pnpm build:main && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --universal --publish never",
+    "package:mac": "pnpm --filter @ai-dashboard/ui build && pnpm build:main && electron-builder --mac --universal --publish never",
+    "package:mac:unsigned": "pnpm --filter @ai-dashboard/ui build && pnpm build:main && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --universal --publish never -c.mac.identity=null -c.mac.notarize=false",
     "start": "pnpm --filter @ai-dashboard/ui build && pnpm build:main && electron .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
@@ -51,8 +52,8 @@
       ]
     },
     "mac": {
-      "sign": null,
-      "notarize": false,
+      "hardenedRuntime": true,
+      "notarize": true,
       "artifactName": "AI-Developer-Dashboard-v${version}-mac-${arch}.${ext}",
       "category": "public.app-category.developer-tools",
       "target": [
