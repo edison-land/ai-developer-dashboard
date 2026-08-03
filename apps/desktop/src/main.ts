@@ -54,7 +54,7 @@ async function startManagedBackend(): Promise<ManagedBackend> {
         title: "需要完全磁盘访问权限",
         message: "AI Developer Dashboard 需要读取本机项目和 Git 状态。",
         detail:
-          "请在“系统设置 → 隐私与安全性 → 完全磁盘访问权限”中找到 AI Developer Dashboard 并打开权限，然后点击“退出”并重新启动应用。如果你刚刚通过 DMG 更新了应用，请先关闭再重新打开这个开关，让 macOS 重新登记当前版本。未开启权限时不会开始扫描，也不会弹出项目文件夹授权页面。",
+          "请在“系统设置 → 隐私与安全性 → 完全磁盘访问权限”中找到 AI Developer Dashboard 并打开权限，然后点击“退出”并重新启动应用。",
         buttons: ["打开系统设置", "退出"],
         defaultId: 0,
         cancelId: 1,
