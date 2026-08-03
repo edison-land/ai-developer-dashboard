@@ -1,8 +1,8 @@
 # AI Developer Dashboard
 
-面向 Claude Code、OpenAI Codex 和 Git 用户的本地优先 Windows AI 编程项目管理工具。它把分散在多个项目和编程助手里的进度汇总到一个桌面工作台，帮助你决定今天先做什么。
+面向 Claude Code、OpenAI Codex 和 Git 用户的本地优先 Windows 和 macOS AI 编程项目管理工具。它把分散在多个项目和编程助手里的进度汇总到一个桌面工作台，帮助你决定今天先做什么。
 
-[**⬇️ 下载 Windows 桌面版**](https://github.com/DrErwin/ai-developer-dashboard/releases/latest) · [English](#english)
+[**⬇️ 下载桌面版（Windows / macOS）**](https://github.com/DrErwin/ai-developer-dashboard/releases/latest) · [English](#english)
 
 <p align="center">
   <img src="output/xiaohongshu/ai-project-dashboard-cover-v3-generic.png" alt="AI Developer Dashboard 功能概览：今日重点、AI 总结和项目阶段" width="520">
@@ -50,13 +50,22 @@ AI Developer Dashboard 读取这些工具留在本机的项目活动，把同一
 
 ## 下载、安装和打开
 
+### Windows
+
 1. 打开 [GitHub Releases 最新版页面](https://github.com/DrErwin/ai-developer-dashboard/releases/latest)。
 2. 在 **Assets** 中下载适用于 Windows x64 的 `.exe` 安装包。
 3. 双击安装包，按提示完成安装。
 4. 从桌面快捷方式或开始菜单打开 **AI Developer Dashboard**。
 
+### macOS
+
+1. 打开 [GitHub Releases 最新版页面](https://github.com/DrErwin/ai-developer-dashboard/releases/latest)。
+2. 在 **Assets** 中下载 macOS universal 的 `.dmg` 安装包；它同时支持 Apple Silicon 和 Intel Mac。
+3. 打开 `.dmg`，把 **AI Developer Dashboard** 拖到 **Applications** 文件夹。
+4. 从 Applications 打开应用。
+
 > [!NOTE]
-> 普通用户不需要安装开发环境，也不需要使用终端、CLI、浏览器地址或端口。当前公开安装包支持 Windows x64。
+> 普通用户不需要安装开发环境，也不需要使用终端、CLI、浏览器地址或端口。macOS 构建未签名、未公证；首次打开如被 Gatekeeper 阻止，请在 Finder 中按住 Control 点按应用并选择“打开”，或在“系统设置 → 隐私与安全性”中允许打开。
 
 ## 它如何整理项目？
 
@@ -76,7 +85,7 @@ AI Developer Dashboard 读取这些工具留在本机的项目活动，把同一
 
 ### 这是 Claude Code 和 Codex 的项目看板吗？
 
-是。它把 Claude Code、OpenAI Codex 和 Git 的本机项目活动汇总到同一个 Windows 桌面看板中。
+是。它把 Claude Code、OpenAI Codex 和 Git 的本机项目活动汇总到同一个 Windows 或 macOS 桌面看板中。
 
 ### 不配置 API Key 可以使用吗？
 
@@ -88,19 +97,19 @@ AI Developer Dashboard 读取这些工具留在本机的项目活动，把同一
 
 ### 数据保存在哪里？
 
-桌面版把个人数据保存在当前 Windows 用户的应用数据目录中，不放在软件安装目录。卸载软件时默认保留这些数据。
+桌面版把个人数据保存在当前系统用户的应用数据目录中，不放在软件安装目录。卸载软件时默认保留这些数据。
 
 ### 如何获得新版本？
 
-前往 [Latest Release](https://github.com/DrErwin/ai-developer-dashboard/releases/latest) 下载新的 Windows 安装包。项目目前不提供自动更新。
+前往 [Latest Release](https://github.com/DrErwin/ai-developer-dashboard/releases/latest) 下载新的 Windows `.exe` 或 macOS `.dmg` 安装包。项目目前不提供自动更新。
 
 ---
 
 ## English
 
-AI Developer Dashboard is a local-first Windows project management tool for developers who use Claude Code, OpenAI Codex, and Git. It brings activity from multiple projects and coding agents into one desktop workspace so you can decide what to work on today.
+AI Developer Dashboard is a local-first Windows and macOS project management tool for developers who use Claude Code, OpenAI Codex, and Git. It brings activity from multiple projects and coding agents into one desktop workspace so you can decide what to work on today.
 
-[**⬇️ Download the Windows desktop app**](https://github.com/DrErwin/ai-developer-dashboard/releases/latest) · [中文](#ai-developer-dashboard)
+[**⬇️ Download the desktop app for Windows or macOS**](https://github.com/DrErwin/ai-developer-dashboard/releases/latest) · [中文](#ai-developer-dashboard)
 
 ## What is AI Developer Dashboard?
 
@@ -136,13 +145,22 @@ The stage board groups projects into Idea, In Development, To Verify, Complete, 
 
 ## Download, install, and open the app
 
+### Windows
+
 1. Open the [latest GitHub Release](https://github.com/DrErwin/ai-developer-dashboard/releases/latest).
 2. Under **Assets**, download the `.exe` installer for Windows x64.
 3. Run the installer and follow its prompts.
 4. Open **AI Developer Dashboard** from the desktop shortcut or Start menu.
 
+### macOS
+
+1. Open the [latest GitHub Release](https://github.com/DrErwin/ai-developer-dashboard/releases/latest).
+2. Under **Assets**, download the universal macOS `.dmg` installer. It supports both Apple Silicon and Intel Macs.
+3. Open the `.dmg` and drag **AI Developer Dashboard** to **Applications**.
+4. Open the application from Applications.
+
 > [!NOTE]
-> You do not need a development environment, terminal, CLI command, browser address, or port for normal use. The current public package supports Windows x64.
+> You do not need a development environment, terminal, CLI command, browser address, or port for normal use. The macOS build is intentionally unsigned and not notarized. If Gatekeeper blocks its first launch, Control-click the app in Finder and choose Open, or allow it under System Settings → Privacy & Security.
 
 ## How does it organize projects?
 
@@ -162,7 +180,7 @@ The Settings page displays the saved API Key for the current model provider so y
 
 ### Is this a project dashboard for Claude Code and Codex?
 
-Yes. It combines local activity from Claude Code, OpenAI Codex, and Git in one Windows desktop dashboard.
+Yes. It combines local activity from Claude Code, OpenAI Codex, and Git in one Windows or macOS desktop dashboard.
 
 ### Can I use it without an API Key?
 
@@ -174,8 +192,8 @@ The app does not upload project source files. When you request an AI summary, it
 
 ### Where does it store my data?
 
-The desktop app stores personal data under the current Windows user's application data directory, outside the installation folder. The uninstaller keeps this data by default.
+The desktop app stores personal data under the current user's application data directory, outside the installation folder. Uninstalling the app keeps this data by default.
 
 ### Where can I get a new version?
 
-Download new Windows installers from the [Latest Release](https://github.com/DrErwin/ai-developer-dashboard/releases/latest). The app does not provide automatic updates at this stage.
+Download new Windows `.exe` or macOS `.dmg` installers from the [Latest Release](https://github.com/DrErwin/ai-developer-dashboard/releases/latest). The app does not provide automatic updates at this stage.

@@ -9,6 +9,7 @@
     "build:ui": "pnpm --filter @ai-dashboard/ui build",
     "desktop:start": "pnpm --filter @ai-dashboard/desktop start",
     "desktop:package": "pnpm --filter @ai-dashboard/desktop package:win",
+    "desktop:package:mac": "pnpm --filter @ai-dashboard/desktop package:mac",
     "start": "pnpm --filter @ai-dashboard/cli start",
     "dev": "pnpm --filter @ai-dashboard/cli dev",
     "test": "pnpm -r --if-present test",

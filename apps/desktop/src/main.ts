@@ -94,13 +94,15 @@ const runtime: DesktopRuntime = {
   },
   onSecondInstance: (listener) => app.on("second-instance", listener),
   onAllWindowsClosed: (listener) => app.on("window-all-closed", listener),
+  onActivate: (listener) => app.on("activate", listener),
+  shouldQuitOnAllWindowsClosed: () => process.platform !== "darwin",
   whenReady: async () => {
     await app.whenReady();
     debug("electron ready");
   },
   createWindow: async (url) => {
     debug(`creating window for ${url}`);
-    Menu.setApplicationMenu(null);
+    if (process.platform !== "darwin") Menu.setApplicationMenu(null);
     const window = new BrowserWindow({
       title: "AI Developer Dashboard",
       width: 1440,
