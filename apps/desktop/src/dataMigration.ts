@@ -38,7 +38,11 @@ function absolute(value: string): string {
 }
 
 function samePath(left: string, right: string): boolean {
-  return absolute(left).toLowerCase() === absolute(right).toLowerCase();
+  const leftAbsolute = absolute(left);
+  const rightAbsolute = absolute(right);
+  return process.platform === "win32"
+    ? leftAbsolute.toLowerCase() === rightAbsolute.toLowerCase()
+    : leftAbsolute === rightAbsolute;
 }
 
 function hasDatabase(dataDir: string): boolean {

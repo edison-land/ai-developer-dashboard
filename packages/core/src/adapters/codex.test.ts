@@ -102,7 +102,7 @@ describe("CodexAdapter", () => {
     expect(signals.length).toBeGreaterThan(0);
     for (const s of signals) {
       expect(s.source).toBe("codex");
-      expect(s.canonicalPath).toMatch(/^[A-Z]:\//); // canonical forward-slash, upper drive
+      expect(s.canonicalPath).toMatch(/^(?:[A-Z]:\/|\/)/); // canonical Windows or POSIX absolute path
     }
     // At least one project is dated like a real epoch-ms timestamp (~2023+).
     const last = Math.max(...signals.map((s) => s.lastActiveMs ?? 0));

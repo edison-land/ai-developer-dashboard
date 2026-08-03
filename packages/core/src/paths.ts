@@ -3,8 +3,9 @@
  * from three sources (Claude Code `.claude.json`, Codex `threads.cwd`, and the
  * OS) in mixed forms — backslashes, forward slashes, `\\?\` extended-length
  * prefixes, CJK characters, and inconsistent drive-letter case. Everything is
- * normalized to a **canonical** forward-slash form internally; we convert back
- * to backslashes only for Windows display.
+ * normalized to a **canonical** forward-slash form internally. Callers that
+ * execute a path must convert it for their host platform instead of reusing a
+ * user-facing display value.
  */
 
 /** Remove the Windows `\\?\` (or `\\?\UNC\`) extended-length path prefix. */
@@ -23,23 +24,30 @@ export function canonicalizePath(p: string): string {
   let s = stripExtendedPrefix(p);
   s = s.replace(/\\/g, "/");
   s = s.replace(/^([a-z]):/i, (_m, d) => d.toUpperCase() + ":");
-  s = s.replace(/\/+$/, "");
+  // Keep POSIX and drive roots intact while removing accidental trailing
+  // separators from project paths.
+  if (s !== "/" && !/^[A-Z]:\/$/.test(s)) s = s.replace(/\/+$/, "");
   return s;
 }
 
-/** Convert a canonical (forward-slash) path back to a Windows-friendly display form. */
+function isWindowsCanonicalPath(canonical: string): boolean {
+  return /^[A-Za-z]:(?:\/|$)/.test(canonical) || canonical.startsWith("//");
+}
+
+/** Render a canonical path with separators appropriate to the path it represents. */
 export function displayPath(canonical: string): string {
-  return canonical.replace(/\//g, "\\");
+  return isWindowsCanonicalPath(canonical) ? canonical.replace(/\//g, "\\") : canonical;
 }
 
 /**
- * Case-insensitive merge key. Windows paths are case-insensitive, so the same
- * project may surface as `D:/PolyU` (Claude Code), `D:/polyu` (Codex), or
- * `d:\polyu` (config.toml). Group by this lowercased canonical form; keep a
- * case-preserved representative for display.
+ * Merge key. Windows paths are case-insensitive, so the same project may
+ * surface as `D:/PolyU` (Claude Code), `D:/polyu` (Codex), or `d:\polyu`
+ * (config.toml). POSIX paths keep their case because macOS volumes may be
+ * configured as case-sensitive.
  */
 export function pathKey(p: string): string {
-  return canonicalizePath(p).toLowerCase();
+  const canonical = canonicalizePath(p);
+  return isWindowsCanonicalPath(canonical) ? canonical.toLowerCase() : canonical;
 }
 
 /** Last segment of a canonical path (CJK-safe). Falls back to the input if empty. */

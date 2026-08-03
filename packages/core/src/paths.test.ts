@@ -37,11 +37,22 @@ describe("canonicalizePath", () => {
   it("leaves an already-canonical path unchanged", () => {
     expect(canonicalizePath("D:/Agent RA2")).toBe("D:/Agent RA2");
   });
+
+  it("preserves POSIX roots and removes a project-path trailing slash", () => {
+    expect(canonicalizePath("/")).toBe("/");
+    expect(canonicalizePath("/Users/kim/Code/")).toBe("/Users/kim/Code");
+  });
 });
 
 describe("displayPath", () => {
   it("converts forward slashes back to backslashes for Windows display", () => {
     expect(displayPath("D:/Agent RA2")).toBe("D:\\Agent RA2");
+  });
+
+  it("keeps POSIX paths readable on macOS and Linux", () => {
+    expect(displayPath("/Users/kim/Code/ai-developer-dashboard")).toBe(
+      "/Users/kim/Code/ai-developer-dashboard",
+    );
   });
 });
 
@@ -104,5 +115,10 @@ describe("pathKey", () => {
 
   it("still strips the extended prefix and normalizes slashes", () => {
     expect(pathKey("\\\\?\\D:\\Foo\\Bar")).toBe("d:/foo/bar");
+  });
+
+  it("preserves case for POSIX paths", () => {
+    expect(pathKey("/Users/kim/Project")).toBe("/Users/kim/Project");
+    expect(pathKey("/Users/kim/project")).toBe("/Users/kim/project");
   });
 });

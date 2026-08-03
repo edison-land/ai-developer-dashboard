@@ -185,7 +185,7 @@ export function SettingsView() {
             value="system"
             current={preference}
             icon="settings"
-            title="跟随 Windows"
+            title="跟随系统"
             description="随系统明暗设置变化"
             onSelect={setPreference}
           />

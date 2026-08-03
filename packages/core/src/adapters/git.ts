@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import type { StatusSnapshot } from "../domain.js";
-import { displayPath, pathKey } from "../paths.js";
+import { pathKey } from "../paths.js";
 
 interface GitResult {
   ok: boolean;
@@ -29,6 +29,11 @@ function runGit(cwd: string, args: string[]): Promise<GitResult> {
       },
     );
   });
+}
+
+/** Convert the canonical slash-separated representation into a host path for git. */
+function nativePath(canonicalPath: string): string {
+  return process.platform === "win32" ? canonicalPath.replace(/\//g, "\\") : canonicalPath;
 }
 
 interface ParsedStatus {
@@ -97,7 +102,7 @@ export class GitAdapter {
   constructor(private concurrency = 6) {}
 
   async snapshotOne(canonicalPath: string): Promise<StatusSnapshot> {
-    const dir = displayPath(canonicalPath);
+    const dir = nativePath(canonicalPath);
     const [status, head, log] = await Promise.all([
       runGit(dir, ["status", "-b", "--porcelain=v1"]),
       runGit(dir, ["rev-parse", "HEAD"]),
