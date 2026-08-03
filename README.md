@@ -68,7 +68,7 @@ AI Developer Dashboard 读取这些工具留在本机的项目活动，把同一
 > 普通用户不需要安装开发环境，也不需要使用终端、CLI、浏览器地址或端口。macOS 构建未签名、未公证；首次打开如被 Gatekeeper 阻止，请在 Finder 中按住 Control 点按应用并选择“打开”，或在“系统设置 → 隐私与安全性”中允许打开。
 
 > [!NOTE]
-> 首次运行时，macOS 会就「文稿」「桌面」「下载」等文件夹各弹一次“想访问××文件夹中的文件”——应用需要读取这些位置里的项目目录，请逐一点“允许”。如果误点了“不允许”，对应文件夹里项目的 Git 状态会缺失，可在“系统设置 → 隐私与安全性 → 文件与文件夹 → AI Developer Dashboard”中重新勾选（或直接授予“完全磁盘访问权限”）。未签名应用偶尔记不住授权，在该设置页手动勾选一次即可。
+> 应用需要读取项目目录，macOS 会对「文稿」「桌面」「下载」三类受保护文件夹各弹一次授权（按类别算，不按项目数量，最多 3 次），逐一点“允许”即可。想一劳永逸：在“系统设置 → 隐私与安全性 → 完全磁盘访问权限”中加入 AI Developer Dashboard，一次授权后不再弹窗。如果误点了“不允许”，对应文件夹里项目的 Git 状态会缺失，可在“系统设置 → 隐私与安全性 → 文件与文件夹 → AI Developer Dashboard”中重新勾选。未签名应用偶尔记不住授权，在上述设置页手动勾选一次即可根治。
 
 ## 它如何整理项目？
 
@@ -166,7 +166,7 @@ The stage board groups projects into Idea, In Development, To Verify, Complete, 
 > You do not need a development environment, terminal, CLI command, browser address, or port for normal use. The macOS build is intentionally unsigned and not notarized. If Gatekeeper blocks its first launch, Control-click the app in Finder and choose Open, or allow it under System Settings → Privacy & Security.
 
 > [!NOTE]
-> On first run macOS asks once per protected folder (“AI Developer Dashboard would like to access files in your Documents/Desktop/Downloads folder”) because the app reads project directories in those locations — click OK for each. If you clicked Don't Allow by mistake, Git status will be missing for projects in that folder; re-enable it under System Settings → Privacy & Security → Files and Folders → AI Developer Dashboard (or grant Full Disk Access). Unsigned apps occasionally fail to remember the choice; ticking it once in that settings pane fixes it permanently.
+> The app reads project directories, so macOS asks once per protected folder category — Documents, Desktop, Downloads (per category, not per project; at most 3 prompts). Click OK for each. To skip prompts entirely, add AI Developer Dashboard under System Settings → Privacy & Security → Full Disk Access once. If you clicked Don't Allow by mistake, Git status will be missing for projects in that folder; re-enable it under System Settings → Privacy & Security → Files and Folders → AI Developer Dashboard. Unsigned apps occasionally fail to remember the choice; ticking it once in that settings pane fixes it permanently.
 
 ## How does it organize projects?
 
