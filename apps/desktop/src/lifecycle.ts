@@ -25,6 +25,13 @@ export interface ManagedBackend {
 
 export type StartBackend = () => Promise<ManagedBackend>;
 
+export class DesktopStartupCancelledError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DesktopStartupCancelledError";
+  }
+}
+
 export interface DesktopController {
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -97,7 +104,9 @@ export function createDesktopController(
       backend = await startBackend();
       await createAndTrackWindow();
     } catch (error) {
-      runtime.showStartupError(`AI Developer Dashboard 启动失败：${errorMessage(error)}`);
+      if (!(error instanceof DesktopStartupCancelledError)) {
+        runtime.showStartupError(`AI Developer Dashboard 启动失败：${errorMessage(error)}`);
+      }
       await stop();
     }
   };

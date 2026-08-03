@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createDesktopController,
+  DesktopStartupCancelledError,
   type DesktopRuntime,
   type DesktopWindow,
   type ManagedBackend,
@@ -135,6 +136,16 @@ describe("desktop lifecycle", () => {
       expect.stringContaining("UI failed to load"),
     );
     expect(h.backend.close).toHaveBeenCalledOnce();
+    expect(h.runtime.quit).toHaveBeenCalledOnce();
+  });
+
+  it("quietly quits when startup is cancelled by a required permission gate", async () => {
+    const h = harness();
+    h.startBackend.mockRejectedValueOnce(new DesktopStartupCancelledError("permission required"));
+
+    await createDesktopController(h.runtime, h.startBackend).start();
+
+    expect(h.runtime.showStartupError).not.toHaveBeenCalled();
     expect(h.runtime.quit).toHaveBeenCalledOnce();
   });
 });

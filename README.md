@@ -68,7 +68,7 @@ AI Developer Dashboard 读取这些工具留在本机的项目活动，把同一
 > 普通用户不需要安装开发环境，也不需要使用终端、CLI、浏览器地址或端口。面向用户发布的 macOS 安装包应使用 Developer ID 完整签名并完成 Apple 公证；GitHub Actions 中标记为 `unsigned-ci` 的构建只用于开发测试，不应作为公开安装包分发。
 
 > [!NOTE]
-> 应用只在读取 Git 状态时请求项目目录权限。macOS 可能分别询问「文稿」「桌面」「下载」等受保护文件夹；请只允许你确实希望纳入面板的目录。选择“不允许”是安全的：应用会停止扫描该类别中的剩余项目，避免重复弹窗，对应项目只是暂时缺少 Git 状态。请不要为本应用授予“完全磁盘访问权限”；如需稍后调整，请使用“系统设置 → 隐私与安全性 → 文件与文件夹 → AI Developer Dashboard”。
+> macOS 版需要“完全磁盘访问权限”才能读取本机项目和 Git 状态。应用每次启动都会先检查该权限；如果尚未开启，会显示提醒并提供“打开系统设置”快捷按钮，跳转到“系统设置 → 隐私与安全性 → 完全磁盘访问权限”。请在列表中找到 **AI Developer Dashboard** 并打开权限，然后点击应用提醒中的“退出”并重新启动应用。刚通过 DMG 更新应用时，请先关闭再重新打开这个开关，让 macOS 重新登记当前版本。权限开启前应用不会开始扫描，也不会触发项目文件夹授权弹窗。
 
 ## 它如何整理项目？
 
@@ -166,7 +166,7 @@ The stage board groups projects into Idea, In Development, To Verify, Complete, 
 > You do not need a development environment, terminal, CLI command, browser address, or port for normal use. Public macOS packages should be fully signed with a Developer ID and notarized by Apple. GitHub Actions artifacts marked `unsigned-ci` are development builds and must not be distributed as public installers.
 
 > [!NOTE]
-> The app requests project-folder access only when reading Git state. macOS may ask separately for protected categories such as Documents, Desktop, and Downloads; allow only folders you intentionally want on the dashboard. Choosing Don't Allow is safe: the app stops scanning the remaining projects in that category to prevent repeated prompts, and those projects simply omit Git status. Do not grant this app Full Disk Access. To change a decision later, use System Settings → Privacy & Security → Files and Folders → AI Developer Dashboard.
+> The macOS app requires **Full Disk Access** to read local projects and Git state. It checks this permission before every launch; when it is missing, the app shows a reminder with an **Open System Settings** shortcut to System Settings → Privacy & Security → Full Disk Access. Find **AI Developer Dashboard**, enable it, click **Quit** in the reminder, and restart the app. After installing a new DMG build, turn the switch off and on once so macOS registers the current app version. Until the permission is enabled, the app does not start scanning or trigger project-folder authorization prompts.
 
 ## How does it organize projects?
 
